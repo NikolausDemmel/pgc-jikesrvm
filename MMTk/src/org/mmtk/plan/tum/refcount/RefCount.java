@@ -122,9 +122,9 @@ public class RefCount extends StopTheWorld {
   @Override
   public boolean willNeverMove(ObjectReference object) {
 	  // TODO: change ;)
-   /* if (Space.isInSpace(MARK_SWEEP, object))
+    if (Space.isInSpace(COUNT_REF, object))
       return true;
-    return super.willNeverMove(object);*/
+    return super.willNeverMove(object);
   }
 
   /**
