@@ -77,7 +77,7 @@ public class ControllerCollectorContext extends CollectorContext {
         Plan.concurrentWorkers.waitForCycle();
         Phase.clearConcurrentPhase();
         // Collector must re-request concurrent collection in this case.
-        concurrentCollection = false;
+        concurrentCollection = false; // @demmeln hmm....
       }
 
       // Stop all mutator threads
@@ -119,6 +119,7 @@ public class ControllerCollectorContext extends CollectorContext {
       VM.collection.resumeAllMutators();
 
       // Start threads that will perform concurrent collection work alongside mutators.
+      // @demmeln who triggers collection?
       if (concurrentCollection) {
         if (Options.verbose.getValue() >= 5) Log.writeln("[STWController: Triggering concurrent collectors...]");
         Plan.concurrentWorkers.triggerCycle();
