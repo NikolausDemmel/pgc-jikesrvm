@@ -39,8 +39,8 @@ public class RefCountCollector extends StopTheWorldCollector {
   /****************************************************************************
    * Instance fields
    */
-  protected RefCountTraceLocal fullTrace = new RefCountTraceLocal(global().rcTrace, null);;
-  protected TraceLocal currentTrace = fullTrace;
+//  protected RefCountTraceLocal fullTrace = new RefCountTraceLocal(global().rcTrace, null);;
+//  protected TraceLocal currentTrace = fullTrace;
 
 
   /****************************************************************************
@@ -56,22 +56,22 @@ public class RefCountCollector extends StopTheWorldCollector {
   @Inline
   @Override
   public void collectionPhase(short phaseId, boolean primary) {
-    if (phaseId == RefCount.PREPARE) {
-      super.collectionPhase(phaseId, primary);
-      fullTrace.prepare();
-      return;
-    }
-
-    if (phaseId == RefCount.CLOSURE) {
-      fullTrace.completeTrace();
-      return;
-    }
-
-    if (phaseId == RefCount.RELEASE) {
-      fullTrace.release();
-      super.collectionPhase(phaseId, primary);
-      return;
-    }
+//    if (phaseId == RefCount.PREPARE) {
+//      super.collectionPhase(phaseId, primary);
+//      fullTrace.prepare();
+//      return;
+//    }
+//
+//    if (phaseId == RefCount.CLOSURE) {
+//      fullTrace.completeTrace();
+//      return;
+//    }
+//
+//    if (phaseId == RefCount.RELEASE) {
+//      fullTrace.release();
+//      super.collectionPhase(phaseId, primary);
+//      return;
+//    }
 
     super.collectionPhase(phaseId, primary);
   }
@@ -88,8 +88,8 @@ public class RefCountCollector extends StopTheWorldCollector {
   }
 
   /** @return The current trace instance. */
-  @Override
-  public final TraceLocal getCurrentTrace() {
-    return currentTrace;
-  }
+//  @Override
+//  public final TraceLocal getCurrentTrace() {
+//    return currentTrace;
+//  }
 }

@@ -27,94 +27,6 @@ public class RefCountHeader implements Constants {
   public static final int GLOBAL_GC_BITS_REQUIRED = 2;
   public static final int GC_HEADER_WORDS_REQUIRED = 1;
 
-  /****************************************************************************
-   * Object Logging (applies to *all* objects)
-   */
-
-  /* Mask bits to signify the start/finish of logging an object */
-  public static final int      LOG_BIT  = 0;
-  public static final Word       LOGGED = Word.zero();                          //...00000
-  public static final Word    UNLOGGED  = Word.one();                           //...00001
-  public static final Word BEING_LOGGED = Word.one().lsh(2).minus(Word.one());  //...00011
-  public static final Word LOGGING_MASK = LOGGED.or(UNLOGGED).or(BEING_LOGGED); //...00011
-
-  /**
-   * Return true if <code>object</code> is yet to be logged (for
-   * coalescing RC).
-   *
-   * @param object The object in question
-   * @return <code>true</code> if <code>object</code> needs to be logged.
-   */
-  @Inline
-  @Uninterruptible
-  public static boolean logRequired(ObjectReference object) {
-    Word value = VM.objectModel.readAvailableBitsWord(object);
-    return value.and(LOGGING_MASK).EQ(UNLOGGED);
-  }
-
-  /**
-   * Attempt to log <code>object</code> for coalescing RC. This is
-   * used to handle a race to log the object, and returns
-   * <code>true</code> if we are to log the object and
-   * <code>false</code> if we lost the race to log the object.
-   *
-   * <p>If this method returns <code>true</code>, it leaves the object
-   * in the <code>BEING_LOGGED</code> state.  It is the responsibility
-   * of the caller to change the object to <code>LOGGED</code> once
-   * the logging is complete.
-   *
-   * @see #makeLogged(ObjectReference)
-   * @param object The object in question
-   * @return <code>true</code> if the race to log
-   * <code>object</code>was won.
-   */
-  @Inline
-  @Uninterruptible
-  public static boolean attemptToLog(ObjectReference object) {
-    Word oldValue;
-    do {
-      oldValue = VM.objectModel.prepareAvailableBits(object);
-      if (oldValue.and(LOGGING_MASK).EQ(LOGGED)) {
-        return false;
-      }
-    } while ((oldValue.and(LOGGING_MASK).EQ(BEING_LOGGED)) ||
-             !VM.objectModel.attemptAvailableBits(object, oldValue, oldValue.or(BEING_LOGGED)));
-    if (VM.VERIFY_ASSERTIONS) {
-      Word value = VM.objectModel.readAvailableBitsWord(object);
-      VM.assertions._assert(value.and(LOGGING_MASK).EQ(BEING_LOGGED));
-    }
-    return true;
-  }
-
-
-  /**
-   * Signify completion of logging <code>object</code>.
-   *
-   * <code>object</code> is left in the <code>LOGGED</code> state.
-   *
-   * @see #attemptToLog(ObjectReference)
-   * @param object The object whose state is to be changed.
-   */
-  @Inline
-  @Uninterruptible
-  public static void makeLogged(ObjectReference object) {
-    Word value = VM.objectModel.readAvailableBitsWord(object);
-    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(value.and(LOGGING_MASK).NE(LOGGED));
-    VM.objectModel.writeAvailableBitsWord(object, value.and(LOGGING_MASK.not()));
-  }
-
-  /**
-   * Change <code>object</code>'s state to <code>UNLOGGED</code>.
-   *
-   * @param object The object whose state is to be changed.
-   */
-  @Inline
-  @Uninterruptible
-  public static void makeUnlogged(ObjectReference object) {
-    Word value = VM.objectModel.readAvailableBitsWord(object);
-    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(value.and(LOGGING_MASK).EQ(LOGGED));
-    VM.objectModel.writeAvailableBitsWord(object, value.or(UNLOGGED));
-  }
 
   /************************************************************************
    * RC header word
@@ -127,76 +39,20 @@ public class RefCountHeader implements Constants {
 //  public static final int RESERVED_ALIGN_BIT = 0;
   
   /* color bits */
-  public static final int COLOR_BIT_1 = 1;
-  public static final int COLOR_BIT_2 = 2;
-  public static final Word COLOR_BIT_1_MASK = Word.one().lsh(COLOR_BIT_1);
-  public static final Word COLOR_BIT_2_MASK = Word.one().lsh(COLOR_BIT_2);
-
-  /* The mark bit used for backup tracing. */
-  public static final int MARK_BIT = 1;
-  public static final Word MARK_BIT_MASK = Word.one().lsh(MARK_BIT);
-
-  /* Current not using any bits for cycle detection, etc */
-  public static final int BITS_USED = 2;
+  public static final int COLOR_BIT_1 = 0;
+  public static final int COLOR_BIT_2 = 1;
+  public static final Word COLOR_BIT_MASK = Word.one().lsh(2).minus(Word.one()); // "4-1" : ...011
 
   /* Reference counting increments */
-  public static final int INCREMENT_SHIFT = BITS_USED;
+  public static final int INCREMENT_SHIFT = 0;
   public static final Word INCREMENT = Word.one().lsh(INCREMENT_SHIFT);
-  public static final int AVAILABLE_BITS = BITS_IN_ADDRESS - BITS_USED;
+  // TODO: wieso nicht Word.zero().not(); als limit ?
   public static final Word INCREMENT_LIMIT = Word.one().lsh(BITS_IN_ADDRESS-1).not();
   public static final Word LIVE_THRESHOLD = INCREMENT;
 
   /* Return values from decRC */
   public static final int DEC_KILL = 0;
   public static final int DEC_ALIVE = 1;
-
-  /**
-   * Has this object been marked by the most recent backup trace.
-   */
-  @Inline
-  public static boolean isMarked(ObjectReference object) {
-    return isHeaderMarked(object.toAddress().loadWord(RC_HEADER_OFFSET));
-  }
-
-  /**
-   * Has this object been marked by the most recent backup trace.
-   */
-  @Inline
-  public static void clearMarked(ObjectReference object) {
-    Word oldValue, newValue;
-    do {
-      oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
-      if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(isHeaderMarked(oldValue));
-      newValue = oldValue.and(MARK_BIT_MASK.not());
-    } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
-    /*
-    Word header = object.toAddress().loadWord(RC_HEADER_OFFSET);
-    object.toAddress().store(header.and(MARK_BIT_MASK.not()), RC_HEADER_OFFSET);*/
-  }
-
-  /**
-   * Has this object been marked by the most recent backup trace.
-   */
-  @Inline
-  private static boolean isHeaderMarked(Word header) {
-    return header.and(MARK_BIT_MASK).EQ(MARK_BIT_MASK);
-  }
-
-  /**
-   * Attempt to atomically mark this object. Return true if the mark was performed.
-   */
-  @Inline
-  public static boolean testAndMark(ObjectReference object) {
-    Word oldValue, newValue;
-    do {
-      oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
-      if (isHeaderMarked(oldValue)) {
-        return false;
-      }
-      newValue = oldValue.or(MARK_BIT_MASK);
-    } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
-    return true;
-  }
 
   /**
    * Perform any required initialization of the GC portion of the header.
@@ -242,7 +98,7 @@ public class RefCountHeader implements Constants {
   @Inline
   public static void incRC(ObjectReference object) {
     Word oldValue, newValue;
-    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(RefCount.isRCObject(object));
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(RefCount.isRefCountObject(object));
     do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
       newValue = oldValue.plus(INCREMENT);
@@ -265,7 +121,7 @@ public class RefCountHeader implements Constants {
     Word oldValue, newValue;
     int rtn;
     if (VM.VERIFY_ASSERTIONS) {
-      VM.assertions._assert(RCBase.isRCObject(object));
+      VM.assertions._assert(RefCount.isRefCountObject(object));
       VM.assertions._assert(isLiveRC(object));
     }
     do {
