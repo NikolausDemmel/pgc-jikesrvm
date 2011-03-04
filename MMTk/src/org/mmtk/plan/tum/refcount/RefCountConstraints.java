@@ -35,4 +35,6 @@ public class RefCountConstraints extends StopTheWorldConstraints {
   public int maxNonLOSDefaultAllocBytes() { return SegregatedFreeListSpace.MAX_FREELIST_OBJECT_BYTES; }
 //  @Override
 //  public int numSpecializedScans() { return 1; }
+  @Override
+  public boolean needsObjectReferenceWriteBarrier() { return true; }
 }
