@@ -51,15 +51,15 @@ public class RefCountHeader implements Constants {
   public static final Word LIVE_THRESHOLD = INCREMENT;
 
   /* Return values from decRC */
-  public static final int DEC_KILL = 0;
-  public static final int DEC_ALIVE = 1;
+  public static final int RC_ZERO = 0;
+  public static final int RC_POSITIVE = 1;
 
   /**
    * Perform any required initialization of the GC portion of the header.
    *
    * @param object the object
    * @param initialInc start with a reference count of 1 (0 if false)
-   */
+   */  
   @Inline
   public static void initializeHeader(ObjectReference object, boolean initialInc) {
     Word initialValue =  (initialInc) ? INCREMENT : Word.zero();
@@ -94,9 +94,10 @@ public class RefCountHeader implements Constants {
    * Increment the reference count of an object.
    *
    * @param object The object whose reference count is to be incremented.
+   * @return True if the object has now RC 1
    */
   @Inline
-  public static void incRC(ObjectReference object) {
+  public static boolean incRC(ObjectReference object) {
     Word oldValue, newValue;
     if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(RefCount.isRefCountObject(object));
     do {
@@ -104,6 +105,7 @@ public class RefCountHeader implements Constants {
       newValue = oldValue.plus(INCREMENT);
       if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
+    return oldValue.LT(LIVE_THRESHOLD); // old value < threshold means that new value must be "1" (i.e. INCREMENT)
   }
 
   /**
@@ -128,11 +130,15 @@ public class RefCountHeader implements Constants {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
       newValue = oldValue.minus(INCREMENT);
       if (newValue.LT(LIVE_THRESHOLD)) {
-        rtn = DEC_KILL;
+        rtn = RC_ZERO;
       } else {
-        rtn = DEC_ALIVE;
+        rtn = RC_POSITIVE;
       }
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
     return rtn;
+  }
+  
+  public static boolean isRCOne(ObjectReference object) {
+	  return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).EQ(INCREMENT);
   }
 }

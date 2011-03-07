@@ -12,10 +12,9 @@
  */
 package org.mmtk.plan.tum.refcount;
 
-import org.mmtk.plan.StopTheWorldConstraints;
-
-import org.mmtk.policy.MarkSweepSpace;
 import org.mmtk.policy.SegregatedFreeListSpace;
+
+import org.mmtk.plan.StopTheWorldConstraints;
 
 import org.vmmagic.pragma.*;
 
@@ -27,14 +26,31 @@ import org.vmmagic.pragma.*;
  */
 @Uninterruptible
 public class RefCountConstraints extends StopTheWorldConstraints {
+  
   @Override
-  public int gcHeaderBits() { return MarkSweepSpace.LOCAL_GC_BITS_REQUIRED; }
+  public int gcHeaderBits() { return RefCountHeader.GLOBAL_GC_BITS_REQUIRED; }
   @Override
-  public int gcHeaderWords() { return MarkSweepSpace.GC_HEADER_WORDS_REQUIRED; }
+  public int gcHeaderWords() { return RefCountHeader.GC_HEADER_WORDS_REQUIRED; }
   @Override
   public int maxNonLOSDefaultAllocBytes() { return SegregatedFreeListSpace.MAX_FREELIST_OBJECT_BYTES; }
+  
 //  @Override
 //  public int numSpecializedScans() { return 1; }
+  
   @Override
   public boolean needsObjectReferenceWriteBarrier() { return true; }
+  @Override
+  public boolean needsObjectReferenceNonHeapWriteBarrier() { return true;}
+
+
+//  @Override
+//  public boolean needsObjectReferenceReadBarrier() { return true; }
+//  @Override
+//  public boolean needsObjectReferenceNonHeapReadBarrier() { return true;}
+//  
+  // just to make sure they are not called:
+  @Override
+  public boolean needsAddressWriteBarrier() { return true; }
+  @Override
+  public boolean needsWordWriteBarrier() { return true; }
 }

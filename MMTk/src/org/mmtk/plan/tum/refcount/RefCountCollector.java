@@ -47,6 +47,11 @@ public class RefCountCollector extends StopTheWorldCollector {
    * Collection
    */
 
+  @Override
+  public final void collect() {
+    VM.assertions.fail("GC not implemented ?");
+  }
+
   /**
    * Perform a per-collector collection phase.
    *

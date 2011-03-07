@@ -41,6 +41,7 @@ public class RefCount extends StopTheWorld {
 	/*****************************************************************************
 	 * Collection
 	 */
+	
 	public static final boolean isRefCountObject(ObjectReference object) {
 		return !object.isNull() && !Space.isInSpace(RC_DESC, object);
 	}
