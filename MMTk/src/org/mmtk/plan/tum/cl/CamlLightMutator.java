@@ -13,6 +13,8 @@
 package org.mmtk.plan.tum.cl;
 
 import org.mmtk.plan.StopTheWorldMutator;
+import org.mmtk.policy.ExplicitFreeListLocal;
+import org.mmtk.policy.ExplicitFreeListSpace;
 import org.mmtk.policy.MarkSweepLocal;
 import org.mmtk.policy.Space;
 import org.mmtk.utility.Log;
@@ -40,11 +42,13 @@ import org.vmmagic.unboxed.*;
 @Uninterruptible
 public class CamlLightMutator extends StopTheWorldMutator {
 
+  private static final CamlLightTrace clt = new CamlLightTrace();
+  
   /************************************************************************
    * Instance fields
    */
-  private final MarkSweepLocal ms = new MarkSweepLocal(CamlLight.msSpace);
-
+//  private final MarkSweepLocal ms = new MarkSweepLocal(CamlLight.msSpace);
+  private final ExplicitFreeListLocal cs = new ExplicitFreeListLocal(CamlLight.camlSpace);
 
   /****************************************************************************
    * Mutator-time allocation
@@ -65,7 +69,7 @@ public class CamlLightMutator extends StopTheWorldMutator {
   public Address alloc(int bytes, int align, int offset, int allocator, int site) {
     if (allocator == CamlLight.ALLOC_DEFAULT) {
       //if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(false, "foo");
-      return ms.alloc(bytes, align, offset);
+      return cs.alloc(bytes, align, offset);
     }
     return super.alloc(bytes, align, offset, allocator, site);
   }
@@ -84,7 +88,8 @@ public class CamlLightMutator extends StopTheWorldMutator {
   public void postAlloc(ObjectReference ref, ObjectReference typeRef,
       int bytes, int allocator) {
     if (allocator == CamlLight.ALLOC_DEFAULT) {
-      CamlLight.msSpace.postAlloc(ref);
+      ExplicitFreeListSpace.unsyncSetLiveBit(ref);
+      CamlLightHeader.initializeHeader(ref, false);
     } else {
       super.postAlloc(ref, typeRef, bytes, allocator);
     }
@@ -101,7 +106,7 @@ public class CamlLightMutator extends StopTheWorldMutator {
    */
   @Override
   public Allocator getAllocatorFromSpace(Space space) {
-    if (space == CamlLight.msSpace) return ms;
+    if (space == CamlLight.camlSpace) return cs;
     return super.getAllocatorFromSpace(space);
   }
 
@@ -109,6 +114,17 @@ public class CamlLightMutator extends StopTheWorldMutator {
   /****************************************************************************
    * Collection
    */
+  
+  public static final void delete(ObjectReference obj) {
+    if (VM.VERIFY_ASSERTIONS) {
+      VM.assertions._assert(CamlLight.isRefCountObject(obj));
+      //VM.assertions._assert(CamlLightHeader.isLiveRC(obj));
+    }
+    if(CamlLightHeader.decRC(obj) == CamlLightHeader.RC_ZERO) {
+      VM.scanning.scanObject(clt, obj);
+      CamlLight.camlSpace.free(obj);
+    }
+  }
 
   /**
    * Perform a per-mutator collection phase.
@@ -120,17 +136,17 @@ public class CamlLightMutator extends StopTheWorldMutator {
   @Override
   public final void collectionPhase(short phaseId, boolean primary) {
     
-     if (phaseId == CamlLight.PREPARE) {
-       super.collectionPhase(phaseId, primary);
-       ms.prepare();
-       return;
-     }
-
-     if (phaseId == CamlLight.RELEASE) {
-       ms.release();
-       super.collectionPhase(phaseId, primary);
-       return;
-     }
+//     if (phaseId == CamlLight.PREPARE) {
+//       super.collectionPhase(phaseId, primary);
+//       ms.prepare();
+//       return;
+//     }
+//
+//     if (phaseId == CamlLight.RELEASE) {
+//       ms.release();
+//       super.collectionPhase(phaseId, primary);
+//       return;
+//     }
      
      super.collectionPhase(phaseId, primary);
 
@@ -141,17 +157,23 @@ public class CamlLightMutator extends StopTheWorldMutator {
   public void objectReferenceWrite(ObjectReference src, Address slot,
                            ObjectReference tgt, Word metaDataA,
                            Word metaDataB, int mode) {
-    Log.writeln("objectReferenceWrite");
-    Log.writeln(src);
-    Log.writeln(slot);
-    Log.writeln(tgt);
-    Log.writeln(metaDataA);
-    Log.writeln(metaDataB);
-    Log.writeln(mode);
-    
+//    Log.writeln("objectReferenceWrite");
+//    Log.writeln(src);
+//    Log.writeln(slot);
+//    Log.writeln(tgt);
+//    Log.writeln(metaDataA);
+//    Log.writeln(metaDataB);
+//    Log.writeln(mode);
+//    
     //Log.writeln("-> objectReferenceWrite [src: " + src + ", slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB + ", mode: " + mode);
 //    if(Space.isInSpace(CamlLight.MS, src))
 //      Log.writeln("-> objectReferenceWrite");
+    
+    if (CamlLight.isInitialized()) {
+      ObjectReference old = slot.loadObjectReference();
+
+      writeBarrier(old, tgt);
+    }
 
     VM.barriers.objectReferenceWrite(src,tgt,metaDataA, metaDataB, mode);
   }
@@ -161,20 +183,43 @@ public class CamlLightMutator extends StopTheWorldMutator {
   public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt,
       Word metaDataA, Word metaDataB) {
     //Log.writeln("-> objectReferenceNonHeapWrite [slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB);
-    Log.writeln("-> objectReferenceNonHeapWrite");
-    Log.writeln(slot);
-    Log.writeln(tgt);
-    Log.writeln(metaDataA);
-    Log.writeln(metaDataB);
+//    Log.writeln("-> objectReferenceNonHeapWrite");
+//    Log.writeln(slot);
+//    Log.writeln(tgt);
+//    Log.writeln(metaDataA);
+//    Log.writeln(metaDataB);
+
+    if (CamlLight.isInitialized()) {
+      ObjectReference old = slot.loadObjectReference();
+
+      writeBarrier(old, tgt);
+    }
 
     VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
   }
   
-	@Override
-	public boolean objectReferenceTryCompareAndSwap(ObjectReference src,
-			Address slot, ObjectReference old, ObjectReference tgt,
-			Word metaDataA, Word metaDataB, int mode) {
-		return VM.barriers.objectReferenceTryCompareAndSwap(src, old, tgt, metaDataA, metaDataB, mode);
-	}
+  @Inline
+  @Override
+  public boolean objectReferenceTryCompareAndSwap(ObjectReference src, Address slot,
+      ObjectReference old, ObjectReference tgt, Word metaDataA,
+      Word metaDataB, int mode) {
+
+    if(CamlLight.isInitialized()) { 
+      writeBarrier(old, tgt);
+    }
+    
+    return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
+  }
   
+  @Inline
+  private void writeBarrier(ObjectReference old, ObjectReference tgt) {
+
+    if (!tgt.isNull() && CamlLight.isRefCountObject(tgt))
+      CamlLightHeader.incRC(tgt);
+
+    if (!old.isNull() && CamlLight.isRefCountObject(old)) {
+      delete(old);
+    }
+  }
+
 }

@@ -13,7 +13,7 @@
 package org.mmtk.plan.tum.cl;
 
 import org.mmtk.plan.StopTheWorldConstraints;
-import org.mmtk.policy.MarkSweepSpace;
+import org.mmtk.plan.tum.cl.CamlLightHeader;
 import org.mmtk.policy.SegregatedFreeListSpace;
 
 import org.vmmagic.pragma.*;
@@ -27,9 +27,9 @@ import org.vmmagic.pragma.*;
 @Uninterruptible
 public class CamlLightConstraints extends StopTheWorldConstraints {
   @Override
-  public int gcHeaderBits() { return MarkSweepSpace.LOCAL_GC_BITS_REQUIRED; }
+  public int gcHeaderBits() { return CamlLightHeader.GLOBAL_GC_BITS_REQUIRED; }
   @Override
-  public int gcHeaderWords() { return MarkSweepSpace.GC_HEADER_WORDS_REQUIRED; }
+  public int gcHeaderWords() { return CamlLightHeader.GC_HEADER_WORDS_REQUIRED; }
   @Override
   public int maxNonLOSDefaultAllocBytes() { return SegregatedFreeListSpace.MAX_FREELIST_OBJECT_BYTES; }
   
