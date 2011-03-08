@@ -12,12 +12,17 @@
  */
 package org.mmtk.plan.tum.refcount;
 
-import org.mmtk.plan.*;
-import org.mmtk.plan.refcount.fullheap.RCFindRootSetTraceLocal;
+import org.mmtk.plan.CollectorContext;
+import org.mmtk.plan.Phase;
+import org.mmtk.plan.StopTheWorldCollector;
+import org.mmtk.plan.TraceLocal;
+import org.mmtk.utility.Log;
+import org.mmtk.utility.deque.AddressPairDeque;
 import org.mmtk.utility.deque.ObjectReferenceDeque;
 import org.mmtk.vm.VM;
-
-import org.vmmagic.pragma.*;
+import org.vmmagic.pragma.Inline;
+import org.vmmagic.pragma.Uninterruptible;
+import org.vmmagic.unboxed.ObjectReference;
 
 /**
  * This class implements <i>per-collector thread</i> behavior
@@ -37,7 +42,8 @@ import org.vmmagic.pragma.*;
  */
 @Uninterruptible
 public class RefCountCollector extends StopTheWorldCollector {
-
+	protected final ObjectReferenceDeque ZCT = new ObjectReferenceDeque("zct", global().zcts);
+	  protected final AddressPairDeque refTable = new AddressPairDeque(global().refs);
 
 
 	//	/****************************************************************************
@@ -60,27 +66,37 @@ public class RefCountCollector extends StopTheWorldCollector {
 	@Inline
 	@Override
 	public void collectionPhase(short phaseId, boolean primary) {
-		System.out.println("RefCountCollector.collectionPhase("+phaseId+", "+primary+")");
+//		Log.writeln("RefCountCollector.collectionPhase("+phaseId+", "+primary+")");
 		if (phaseId == RefCount.PREPARE) {
-			System.out.println("PREPARE");
+//			RefCount.rcSpace.prepare();
+//				for(ObjectReference obj : RefCount.ZCT){
+//					RefCount.rcSpace.free(obj);
+////					System.out.print(".");
+//
+//				}
+//				RefCount.rcSpace.release();
+//			Log.writeln("PREPARE");
 			super.collectionPhase(phaseId, primary);
 			rctl.prepare();
 			return;
 		}
-
+		if(phaseId == RefCount.STACK_ROOTS){
+//			Log.writeln("STACK_ROOTS\t"+RefCount.freeMemory());
+		}
 		if (phaseId == RefCount.CLOSURE) {
-			System.out.println("CLOSURE");
-			rctl.completeTrace();
+//			Log.writeln("CLOSURE\t"+RefCount.freeMemory());
+			//						rctl.completeTrace();
 			return;
 		}
 
 		if (phaseId == RefCount.RELEASE) {
-			System.out.println("RELEASE");
+
+//			Log.writeln("RELEASE\t"+RefCount.freeMemory());
 			rctl.release();
 			super.collectionPhase(phaseId, primary);
 			return;
 		}
-
+		Log.writeln(RefCount.freeMemory().toInt()/(1024f*1024f));
 
 		super.collectionPhase(phaseId, primary);
 	}
@@ -89,16 +105,16 @@ public class RefCountCollector extends StopTheWorldCollector {
 	//	/****************************************************************************
 	//	 * Miscellaneous
 	//	 */
-//	public RefCountCollector(){
-//		//	rootTrace = new RCFindRootSetTraceLocal(global().rootTrace, newRootBuffer);
-//		//enwRootBuffer = new ObjectReferenceDeque("new-root",global().newRootPool());
-//	}
+	public RefCountCollector(){
+		//	rootTrace = new RCFindRootSetTraceLocal(global().rootTrace, newRootBuffer);
+		//enwRootBuffer = new ObjectReferenceDeque("new-root",global().newRootPool());
+	}
 
-//	@Override
-//	public void collect() {
-//		//		Phase.beginNewPhaseStack(Phase.scheduleComplex());
-//		super.collect();
-//	}
+	@Override
+	public void collect() {
+		Phase.beginNewPhaseStack(Phase.scheduleComplex(global().collection));
+		//		super.collect();
+	}
 	//
 	//
 	//	/** @return The active global plan as an <code>MS</code> instance. */

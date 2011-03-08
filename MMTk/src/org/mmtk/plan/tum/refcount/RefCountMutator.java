@@ -13,16 +13,18 @@
 package org.mmtk.plan.tum.refcount;
 
 import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.LinkedList;
-import java.util.List;
 
 import org.mmtk.plan.MutatorContext;
 import org.mmtk.plan.StopTheWorldMutator;
 import org.mmtk.policy.ExplicitFreeListLocal;
+import org.mmtk.policy.ExplicitFreeListSpace;
 import org.mmtk.policy.Space;
+import org.mmtk.utility.DoublyLinkedList;
+import org.mmtk.utility.Log;
 import org.mmtk.utility.alloc.Allocator;
+import org.mmtk.utility.deque.AddressPairDeque;
+import org.mmtk.utility.deque.ObjectReferenceDeque;
+import org.mmtk.utility.sanitychecker.SanityDataTable;
 import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Uninterruptible;
@@ -47,11 +49,13 @@ import org.vmmagic.unboxed.Word;
  */
 @Uninterruptible
 public class RefCountMutator extends StopTheWorldMutator {
+
+	public static ObjectReferenceDeque ZCT = new ObjectReferenceDeque("zct", RefCount.zcts);
+	protected final DoublyLinkedList refTable = new DoublyLinkedList(1,true);//RefCount.refs);
 	/****************************************************************************
 	 * Instance fields
 	 */
-	protected ExplicitFreeListLocal freelist = new ExplicitFreeListLocal(
-			RefCount.rcSpace);
+	protected ExplicitFreeListLocal freelist = new ExplicitFreeListLocal(RefCount.rcSpace);
 
 	/****************************************************************************
 	 * Mutator-time allocation
@@ -72,16 +76,17 @@ public class RefCountMutator extends StopTheWorldMutator {
 	 *            The allocator associated with this request.
 	 * @return The low address of the allocated memory.
 	 */
-	@Inline
 	@Override
 	public Address alloc(int bytes, int align, int offset, int allocator,
 			int site) {
-
+		//		Log.writeln(RefCount.freeMemory().toInt()/(1024*1024));
+		//		System.exit(42);
 		if (allocator == RefCount.ALLOC_DEFAULT) {
 			return freelist.alloc(bytes, align, offset);			
 		}		
 		return super.alloc(bytes, align, offset, allocator, site);
 	}
+
 
 
 	/**
@@ -93,7 +98,7 @@ public class RefCountMutator extends StopTheWorldMutator {
 	 *            The newly allocated object
 	 * @param typeRef
 	 *            the type reference for the instance being created
-	 * @param bytes	System.out.println(
+	 * @param bytes	Log.writeln(
 	 *            The size of the space to be allocated (in bytes)
 	 * @param allocator
 	 *            The allocator number to be used for this allocation
@@ -102,24 +107,27 @@ public class RefCountMutator extends StopTheWorldMutator {
 	@Override
 	public void postAlloc(ObjectReference ref, ObjectReference typeRef,
 			int bytes, int allocator) {
-//		System.out.println("postalloc");
-//		if(ref!=null)System.out.println("ref:\t"+ref+" "+typeRef);
-//		if(typeRef!=null)System.out.println("typeRef:\t"+typeRef.toAddress().toInt());
+		//		Log.writeln("postalloc");
+		//		if(ref!=null)Log.writeln("ref:\t"+ref+" "+typeRef);
+		//		if(typeRef!=null)Log.writeln("typeRef:\t"+typeRef.toAddress().toInt());
 		switch (allocator) {
 		case RefCount.ALLOC_DEFAULT:
 			RefCountHeader.initializeHeader(ref, true);
+			ExplicitFreeListSpace.unsyncSetLiveBit(ref);
 			break;
 
 		case RefCount.ALLOC_NON_MOVING:
 		case RefCount.ALLOC_CODE:
 		case RefCount.ALLOC_IMMORTAL:
 			RefCountHeader.initializeHeader(ref, true);	
+			ExplicitFreeListSpace.unsyncSetLiveBit(ref);
 			break;
 
 		case RefCount.ALLOC_LARGE_CODE:
 		case RefCount.ALLOC_LOS:
 		case RefCount.ALLOC_PRIMITIVE_LOS:
 			RefCountHeader.initializeHeader(ref, true);
+			ExplicitFreeListSpace.unsyncSetLiveBit(ref);
 			break;
 
 		default:
@@ -129,8 +137,33 @@ public class RefCountMutator extends StopTheWorldMutator {
 	}	
 
 
-	public void out(String ping) {
-		//	System.out.println(ping);
+	public synchronized void out(boolean exit) {
+		if(hcnt%1000==0){
+
+			//			Log.writeln("refs:");
+			//			Enumeration<String> addresses = RefCount.refTable.keys();
+			//			while(addresses.hasMoreElements()){
+			//				String addr = addresses.nextElement();
+			//				ObjectReference obj = RefCount.refTable.get(addr);
+			//				int count = RefCountHeader.getRC(obj);
+			//				Log.writeln(addr+"\t->\t"+obj+" ("+count+")");
+			//				RefCountHeader.getRC(obj);
+			//			}	
+			Log.write("ref_size: ");
+//			Log.writeln(RefCount.refTable.size());
+			Log.write("ZCT_size: ");
+			//			Log.writeln(RefCount.ZCT.size());
+			Log.write(iinc);
+			Log.writeln(" times incremented");
+			Log.write(idec);
+			Log.writeln(" times decremented");
+			Log.write(idel);
+			Log.writeln(" times deleted");
+			//			for(ObjectReference obj : RefCount.ZCT){
+			//				Log.writeln(obj);
+			//			}
+			if(exit)System.exit(42);		//		Log.writeln("tablesize\t"+RefCount.refTable.size());
+		}
 	}
 
 	/**
@@ -149,16 +182,6 @@ public class RefCountMutator extends StopTheWorldMutator {
 			return freelist;
 		return super.getAllocatorFromSpace(space);
 	}
-
-	Address edgeAddress;
-	ObjectReference edgeTarget;
-	ObjectReference edgeOldTarget;
-	ObjectReference edgeSource;
-	boolean refc = false;
-
-
-	static Hashtable<String, ObjectReference> slottarget = new Hashtable<String, ObjectReference>();
-	List<ObjectReference> killed = new LinkedList<ObjectReference>();
 
 
 	/****************************************************************************
@@ -186,69 +209,53 @@ public class RefCountMutator extends StopTheWorldMutator {
 	 * @param mode
 	 *            The context in which the store occurred
 	 */
-	Hashtable<String,ObjectReference> refTable = new Hashtable<String,ObjectReference>();
-	@Inline
+	//	@Inline
 	public void objectReferenceWrite(ObjectReference src, Address slot,
 			ObjectReference tgt, Word metaDataA, Word metaDataB, int mode) {
-		//		System.out.println("writeBarrier");
-//		System.out.println(src+" "+slot+" "+tgt+" "+metaDataA+" "+metaDataB+" "+mode);
-//		System.out.println((src==null)+" "+(slot==null)+" "+(tgt==null)+" "+(metaDataA==null)+" "+(metaDataB==null)+" "+mode);
-		//		if(src!=null)System.out.println("src:\t"+src.toAddress().toInt()+" "+RefCountHeader.getRC(src));
-		//		if(slot!=null)System.out.println("slot:\t"+slot.toInt());
-		//		if(tgt!=null)System.out.println("tgt:\t"+tgt.toAddress().toInt()/*+" "+RefCountHeader.getRC(tgt)*/);
 
-		//		System.out.println((src==null)+" "+(tgt==null));
-		//RefCountHeader.initializeHeader(tgt, true);
-		//System.out.println("hit:\t"+refTable.containsKey(slot));
-		//if(refTable.containsKey(slot))
-		hcnt++;
-		//		System.out.println("hitcnt:\t"+hcnt);
-		/* nur mit sinnvollen Targets arbeiten (sanity) */
-		if(tgt!=null){
-			// Zielobjekt ist bekannt
-			if(refTable.containsKey(slot.toString())){
-				ObjectReference old = refTable.get(slot.toString());
-				/* Ziel_neu != Ziel_alt */
-				if(!old.toString().equals(tgt.toString())){
-					idec++;
-					/* RC(Ziel_alt)-- */
+		RefCountHeader.incRC(tgt);
+		//		Log.writeln("RefCountMutator.objectReferenceWrite()");
+		try{
+			hcnt++;
+			if(tgt!=null){
+				// Zielobjekt ist bekannt
+				Log.writeln("mooh");
+				Log.writeln(slot.toInt());
+//				refTable.isMember(slot);
+//				Log.writeln(RefCount.refTable.contains(slot.toInt()));
+//				Log.writeln(RefCount.refTable.indexOf(slot.toInt()));
+				if(refTable.isMember(slot)){
+					refTable.getNext(slot);
 					
-					int retval = RefCountHeader.isLiveRC(old) ? RefCountHeader.DEC_KILL : RefCountHeader.decRC(old);
-					if(retval==RefCountHeader.DEC_KILL){
-						idel=retval==RefCountHeader.DEC_KILL?idel+1:idel;
-						/* töten!!!! */
-						RefCount.ZCT.add(old);
-						refTable.remove(slot.toString());
+					ObjectReference old = RefCount.refTable.get(slot.toInt());
+					/* Ziel_neu != Ziel_alt */
+					if(!old.equals(tgt)){
+						idec++;
+						/* RC(Ziel_alt)-- */
+
+						int retval = !RefCountHeader.isLiveRC(old) ? RefCountHeader.DEC_KILL : RefCountHeader.decRC(old);
+						if(retval==RefCountHeader.DEC_KILL){
+							idel=(retval==RefCountHeader.DEC_KILL)?idel+1:idel;
+							/* töten!!!! */
+							ZCT.push(old);
+							//						RefCount.ZCT.addObject(old);
+							RefCount.refTable.remove(slot.toInt());
+						}
+					}
+				}else{
+					if(RefCount.isRefCountObject(tgt)){
+						//				Log.writeln("if if else");
+						RefCountHeader.incRC(tgt);
+						iinc++;
+						RefCount.refTable.add(slot.toInt(), tgt);
 					}
 				}
-			}else{
-				if(RefCount.isRefCountObject(tgt)){
-					//				System.out.println("if if else");
-					RefCountHeader.incRC(tgt);
-					iinc++;
-					refTable.put(slot.toString(), tgt);
-				}
 			}
+			out(false);
+		}catch(Exception e){
+			e.printStackTrace();
+			System.exit(mode);
 		}
-		if(hcnt%10000==0){
-
-			System.out.println("refs:");
-//			Enumeration<String> addresses = refTable.keys();
-//			while(addresses.hasMoreElements()){
-//				String addr = addresses.nextElement();
-//				ObjectReference obj = refTable.get(addr);
-//				int count = RefCountHeader.getRC(obj);
-//				System.out.println(addr+"\t->\t"+obj+" ("+count+")");
-//				RefCountHeader.getRC(obj);
-//			}	
-			System.out.println("ref_size: "+refTable.size()+"\nZCT_size: "+RefCount.ZCT.size()+"\n"+iinc+" times incremented\n"+idec+" times decremented\n"+idel+" times deleted\nZCT:");
-//			for(ObjectReference obj : RefCount.ZCT){
-//				System.out.println(obj);
-//			}
-			//System.exit(42);		//		System.out.println("tablesize\t"+refTable.size());
-		}
-		// target of slot changed?
-		// decrement old slot target
 		VM.barriers.objectReferenceWrite(src, tgt, metaDataA, metaDataB, mode);
 	}
 	int hcnt=0;
@@ -270,7 +277,35 @@ public class RefCountMutator extends StopTheWorldMutator {
 	public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt,
 			Word metaDataA, Word metaDataB) {
 		// TODO Auto-generated method stub
-		System.out.println("RefCountMutator.objectReferenceNonHeapWrite()");
+		if(tgt!=null){
+			// Zielobjekt ist bekannt
+			if(RefCount.refTable.contains(slot.toInt())){
+				ObjectReference old = RefCount.refTable.get(slot.toInt());
+				/* Ziel_neu != Ziel_alt */
+				if(!old.equals(tgt)){
+					idec++;
+					/* RC(Ziel_alt)-- */
+
+					int retval = !RefCountHeader.isLiveRC(old) ? RefCountHeader.DEC_KILL : RefCountHeader.decRC(old);
+					if(retval==RefCountHeader.DEC_KILL){
+						idel=(retval==RefCountHeader.DEC_KILL)?idel+1:idel;
+						/* töten!!!! */
+						ZCT.push(old);
+						//						RefCount.ZCT.addObject(old);
+						RefCount.refTable.remove(slot.toInt());
+					}
+				}
+			}else{
+				if(RefCount.isRefCountObject(tgt)){
+					//				Log.writeln("if if else");
+					RefCountHeader.incRC(tgt);
+					iinc++;
+					RefCount.refTable.add(slot.toInt(), tgt);
+				}
+			}
+		}
+		out(false);
+
 		super.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
 	}
 
@@ -280,7 +315,7 @@ public class RefCountMutator extends StopTheWorldMutator {
 			Address slot, ObjectReference old, ObjectReference tgt,
 			Word metaDataA, Word metaDataB, int mode) {
 		// TODO Auto-generated method stub
-		System.out.println("RefCountMutator.objectReferenceTryCompareAndSwap()");
+		//		Log.writeln("RefCountMutator.objectReferenceTryCompareAndSwap()");
 		return super.objectReferenceTryCompareAndSwap(src, slot, old, tgt, metaDataA,
 				metaDataB, mode);
 	}
@@ -290,8 +325,8 @@ public class RefCountMutator extends StopTheWorldMutator {
 	public void wordWrite(ObjectReference src, Address slot, Word value,
 			Word metaDataA, Word metaDataB, int mode) {
 		// TODO Auto-generated method stub
-		System.out.println("wordWrite");
-		System.out.println("src\t" +src.toAddress().toInt());
+		//		Log.writeln("wordWrite");
+		//		Log.writeln("src\t" +src.toAddress().toInt());
 		super.wordWrite(src, slot, value, metaDataA, metaDataB, mode);
 	}
 
@@ -307,15 +342,10 @@ public class RefCountMutator extends StopTheWorldMutator {
 	@Inline
 	@Override
 	public void collectionPhase(short phaseId, boolean primary) {
+		//		Log.writeln("RefCountMutator.collectionPhase()");
 		if (phaseId == RefCount.PREPARE) {
-			super.collectionPhase(phaseId, primary);
+
 			freelist.prepare();
-			return;
-		}
-		if (phaseId == RefCount.CLOSURE) {
-			for(ObjectReference k: killed){
-				RefCount.rcSpace.free(k);
-			}
 			return;
 		}
 		if (phaseId == RefCount.RELEASE) {

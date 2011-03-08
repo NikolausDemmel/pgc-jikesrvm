@@ -12,15 +12,16 @@
  */
 package org.mmtk.plan.tum.refcount;
 
-import java.util.HashSet;
-
 import org.mmtk.plan.Phase;
 import org.mmtk.plan.StopTheWorld;
 import org.mmtk.plan.Trace;
 import org.mmtk.plan.TransitiveClosure;
 import org.mmtk.policy.ExplicitFreeListSpace;
 import org.mmtk.policy.Space;
+import org.mmtk.utility.deque.ObjectReferenceDeque;
+import org.mmtk.utility.deque.SharedDeque;
 import org.mmtk.utility.heap.VMRequest;
+import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Interruptible;
 import org.vmmagic.pragma.Uninterruptible;
@@ -30,12 +31,18 @@ import org.vmmagic.unboxed.ObjectReference;
 @Uninterruptible
 public class RefCount extends StopTheWorld {
 
+	  public final static SharedDeque zcts = new SharedDeque("zcts",metaDataSpace, 1);
+	  public final static SharedDeque refs = new SharedDeque("refs",metaDataSpace, 1);
 	/****************************************************************************
 	 * Class variables
 	 */
 	public static final ExplicitFreeListSpace rcSpace = new ExplicitFreeListSpace("rc", VMRequest.create());
 
-	public static HashSet<ObjectReference> ZCT = new HashSet<ObjectReference>();
+	//public static HashSet<ObjectReference> ZCT = new HashSet<ObjectReference>();
+//	public static UITable ZCT = new UITable();
+	
+//	public static Hashtable<Integer,ObjectReference> refTable = new Hashtable<Integer,ObjectReference>();
+//	public static UITable refTable = new UITable(100,true);
 
 	public static final int RC_DESC = rcSpace.getDescriptor();
 	public static final int SCAN_MARK = 0;
@@ -43,8 +50,12 @@ public class RefCount extends StopTheWorld {
 
 	public final Trace refCountTrace = new Trace(metaDataSpace);
 
-	public static final short RefCountCollect = Phase.createComplex("rc", null,
-			Phase.scheduleComplex(initPhase),Phase.scheduleComplex(rootClosurePhase),Phase.scheduleComplex(completeClosurePhase),Phase.scheduleComplex(finishPhase));
+	public  short collection = Phase.createComplex("collection", null,
+			Phase.scheduleComplex(initPhase),
+			Phase.scheduleComplex(rootClosurePhase),
+			Phase.scheduleComplex(completeClosurePhase),
+			Phase.scheduleComplex(finishPhase)
+	);
 
 
 	/****************************************************************************
@@ -69,22 +80,27 @@ public class RefCount extends StopTheWorld {
 	@Inline
 	@Override
 	public void collectionPhase(short phaseId) {
-		System.out.println("RefCount.collectionPhase("+phaseId+")");
+//		Log.writeln("RefCount.collectionPhase("+phaseId+")");
 		if (phaseId == PREPARE) {
-			System.out.println("PREPARE");
-			super.collectionPhase(phaseId);
+			//			 try to kill all elements from ZCT
+//			Log.writeln("PREPARE");
+//			super.collectionPhase(phaseId);
+			VM.finalizableProcessor.clear();
+			VM.weakReferences.clear();
+			VM.softReferences.clear();
+			VM.phantomReferences.clear();
 			rcTrace.prepare();
 			rcSpace.prepare();
 			return;
 		}
-
+		
 		if (phaseId == CLOSURE) {
-			System.out.println("CLOSURE");
+//			Log.writeln("CLOSURE");
 			rcTrace.prepare();
 			return;
 		}
 		if (phaseId == RELEASE) {
-			System.out.println("RELEASE");
+//			Log.writeln("RELEASE");
 			rcTrace.release();
 			rcSpace.release();
 			super.collectionPhase(phaseId);

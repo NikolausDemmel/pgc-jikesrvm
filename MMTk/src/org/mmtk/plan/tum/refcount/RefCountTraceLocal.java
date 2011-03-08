@@ -15,10 +15,10 @@ package org.mmtk.plan.tum.refcount;
 import org.mmtk.plan.Trace;
 import org.mmtk.plan.TraceLocal;
 import org.mmtk.policy.Space;
-import org.mmtk.utility.HeaderByte;
 import org.mmtk.utility.deque.ObjectReferenceDeque;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Uninterruptible;
+import org.vmmagic.unboxed.Address;
 import org.vmmagic.unboxed.ObjectReference;
 //
 ///**
@@ -77,27 +77,40 @@ public final class RefCountTraceLocal extends TraceLocal {
 	@Inline
 	@Override
 	public ObjectReference traceObject(ObjectReference object) {
-		System.out.println("RefCountTraceLocal.traceObject("+object+")\n\tisInSpace:\t"+Space.isInSpace(RefCount.RC_DESC, object));
+//		logMessage(1,"RefCountTraceLocal.traceObject("+object+")\n\tisInSpace:\t"+Space.isInSpace(RefCount.RC_DESC, object)+"\n\tisNull:\t"+object.isNull());
+		
+//		logMessage(3,"##################");
 		if (object.isNull()) return object;
-		if (Space.isInSpace(RefCount.RC_DESC, object))
+		if (Space.isInSpace(RefCount.RC_DESC, object)){
+//			RefCount.rcSpace.free(object);
 			return RefCount.rcSpace.traceObject(this, object);
+		}
 		return super.traceObject(object);
 	}
+//	@Override
+//	public void processRoots() {
+//		logMessage(3,"processRoots()");
+//		Address ref = rootLocations.pop();
+//		logMessage(3, (RefCount.refTable.containsKey(ref.toString()))?"true":"false");
+//		super.processRoots();
+//	}
+	
 	//
 	//  /**
 	//   * Process any remembered set entries.  This means enumerating the
 	//   * mod buffer and for each entry, marking the object as unlogged
 	//   * (we don't enqueue for scanning since we're doing a full heap GC).
 	//   */
-	protected void processRememberedSets() {
-		System.out.println("RefCountTraceLocal.processRememberedSets()");
-		if (modBuffer != null) {
-			logMessage(5, "clearing modBuffer");
-			while (!modBuffer.isEmpty()) {
-				ObjectReference src = modBuffer.pop();
-				HeaderByte.markAsUnlogged(src);
-			}
-		}
-	}
+//	protected void processRememberedSets() {
+//		logMessage(1,"RefCountTraceLocal.processRememberedSets()");
+//		if (modBuffer != null) {
+//			logMessage(5, "clearing modBuffer");
+//			while (!modBuffer.isEmpty()) {
+//				ObjectReference src = modBuffer.pop();
+//				logMessage(1,src);
+//				HeaderByte.markAsUnlogged(src);
+//			}
+//		}
+//	}
 	//
 }

@@ -30,7 +30,6 @@ import org.vmmagic.unboxed.*;
  */
 @Uninterruptible
 public class RCBaseMutator extends StopTheWorldMutator {
-
   /************************************************************************
    * Instance fields
    */
