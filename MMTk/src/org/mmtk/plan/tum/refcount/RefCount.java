@@ -12,14 +12,20 @@
  */
 package org.mmtk.plan.tum.refcount;
 
-import org.mmtk.plan.*;
+import java.util.HashSet;
+
+import org.mmtk.plan.Phase;
+import org.mmtk.plan.StopTheWorld;
+import org.mmtk.plan.Trace;
+import org.mmtk.plan.TransitiveClosure;
 import org.mmtk.policy.ExplicitFreeListSpace;
-import org.mmtk.policy.MarkSweepSpace;
 import org.mmtk.policy.Space;
 import org.mmtk.utility.heap.VMRequest;
+import org.vmmagic.pragma.Inline;
+import org.vmmagic.pragma.Interruptible;
+import org.vmmagic.pragma.Uninterruptible;
+import org.vmmagic.unboxed.ObjectReference;
 
-import org.vmmagic.pragma.*;
-import org.vmmagic.unboxed.*;
 
 @Uninterruptible
 public class RefCount extends StopTheWorld {
@@ -28,22 +34,33 @@ public class RefCount extends StopTheWorld {
 	 * Class variables
 	 */
 	public static final ExplicitFreeListSpace rcSpace = new ExplicitFreeListSpace("rc", VMRequest.create());
-	
+
+	public static HashSet<ObjectReference> ZCT = new HashSet<ObjectReference>();
+
 	public static final int RC_DESC = rcSpace.getDescriptor();
+	public static final int SCAN_MARK = 0;
+
+
+	public final Trace refCountTrace = new Trace(metaDataSpace);
+
+	public static final short RefCountCollect = Phase.createComplex("rc", null,
+			Phase.scheduleComplex(initPhase),Phase.scheduleComplex(rootClosurePhase),Phase.scheduleComplex(completeClosurePhase),Phase.scheduleComplex(finishPhase));
 
 
 	/****************************************************************************
 	 * Instance variables
 	 */
-//	public final Trace rcTrace = new Trace(metaDataSpace);
+	public final Trace rcTrace = new Trace(metaDataSpace);
 
 
 	/*****************************************************************************
 	 * Collection
 	 */
 	public static final boolean isRefCountObject(ObjectReference object) {
-		return !object.isNull() && !Space.isInSpace(RC_DESC, object);
+		return !object.isNull();// && !Space.isInSpace(RC_DESC, object);
 	}
+
+	public Trace rootTrace;
 	/**
 	 * Perform a (global) collection phase.
 	 *
@@ -52,24 +69,27 @@ public class RefCount extends StopTheWorld {
 	@Inline
 	@Override
 	public void collectionPhase(short phaseId) {
-//
-//		if (phaseId == PREPARE) {
-//			super.collectionPhase(phaseId);
-//			rcTrace.prepare();
-//			rcSpace.prepare();
-//			return;
-//		}
-//
-//		if (phaseId == CLOSURE) {
-//			rcTrace.prepare();
-//			return;
-//		}
-//		if (phaseId == RELEASE) {
-//			rcTrace.release();
-//			rcSpace.release();
-//			super.collectionPhase(phaseId);
-//			return;
-//		}
+		System.out.println("RefCount.collectionPhase("+phaseId+")");
+		if (phaseId == PREPARE) {
+			System.out.println("PREPARE");
+			super.collectionPhase(phaseId);
+			rcTrace.prepare();
+			rcSpace.prepare();
+			return;
+		}
+
+		if (phaseId == CLOSURE) {
+			System.out.println("CLOSURE");
+			rcTrace.prepare();
+			return;
+		}
+		if (phaseId == RELEASE) {
+			System.out.println("RELEASE");
+			rcTrace.release();
+			rcSpace.release();
+			super.collectionPhase(phaseId);
+			return;
+		}
 
 		super.collectionPhase(phaseId);
 	}
@@ -111,10 +131,10 @@ public class RefCount extends StopTheWorld {
 	/**
 	 * Register specialized methods.
 	 */
-//	@Interruptible
-//	@Override
-//	protected void registerSpecializedMethods() {
-//		TransitiveClosure.registerSpecializedScan(SCAN_MARK, RefCountTraceLocal.class);
-//		super.registerSpecializedMethods();
-//	}
+	@Interruptible
+	@Override
+	protected void registerSpecializedMethods() {
+		TransitiveClosure.registerSpecializedScan(SCAN_MARK, RefCountTraceLocal.class);
+		super.registerSpecializedMethods();
+	}
 }

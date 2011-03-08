@@ -135,4 +135,24 @@ public class RefCountHeader implements Constants {
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
     return rtn;
   }
+
+public static int nastyDecRC(ObjectReference object) {
+	 Word oldValue, newValue;
+	    int rtn;
+	    if (VM.VERIFY_ASSERTIONS) {
+	      VM.assertions._assert(RefCount.isRefCountObject(object));
+	     // VM.assertions._assert(isLiveRC(object));
+	    }
+	    do {
+	      oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
+	      newValue = oldValue.minus(INCREMENT);
+	      if (newValue.LT(LIVE_THRESHOLD)) {
+	        rtn = DEC_KILL;
+	      } else {
+	        rtn = DEC_ALIVE;
+	      }
+	    } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
+	    return rtn;
+	
+}
 }

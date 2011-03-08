@@ -13,6 +13,8 @@
 package org.mmtk.plan.tum.refcount;
 
 import org.mmtk.plan.*;
+import org.mmtk.plan.refcount.fullheap.RCFindRootSetTraceLocal;
+import org.mmtk.utility.deque.ObjectReferenceDeque;
 import org.mmtk.vm.VM;
 
 import org.vmmagic.pragma.*;
@@ -36,60 +38,78 @@ import org.vmmagic.pragma.*;
 @Uninterruptible
 public class RefCountCollector extends StopTheWorldCollector {
 
-  /****************************************************************************
-   * Instance fields
-   */
-//  protected RefCountTraceLocal fullTrace = new RefCountTraceLocal(global().rcTrace, null);;
-//  protected TraceLocal currentTrace = fullTrace;
 
 
-  /****************************************************************************
-   * Collection
-   */
+	//	/****************************************************************************
+	//	 * Instance fields
+	//	 */
+	protected RefCountTraceLocal rctl = new RefCountTraceLocal(global().refCountTrace, null);;
+	protected TraceLocal currentTrace = rctl;
+	//
+	//
+	//	/****************************************************************************
+	//	 * Collection
+	//	 */
+	//
+	//	/**
+	//	 * Perform a per-collector collection phase.
+	//	 *
+	//	 * @param phaseId The collection phase to perform
+	//	 * @param primary Perform any single-threaded activities using this thread.
+	//	 */
+	@Inline
+	@Override
+	public void collectionPhase(short phaseId, boolean primary) {
+		System.out.println("RefCountCollector.collectionPhase("+phaseId+", "+primary+")");
+		if (phaseId == RefCount.PREPARE) {
+			System.out.println("PREPARE");
+			super.collectionPhase(phaseId, primary);
+			rctl.prepare();
+			return;
+		}
 
-  /**
-   * Perform a per-collector collection phase.
-   *
-   * @param phaseId The collection phase to perform
-   * @param primary Perform any single-threaded activities using this thread.
-   */
-  @Inline
-  @Override
-  public void collectionPhase(short phaseId, boolean primary) {
-//    if (phaseId == RefCount.PREPARE) {
-//      super.collectionPhase(phaseId, primary);
-//      fullTrace.prepare();
-//      return;
-//    }
-//
-//    if (phaseId == RefCount.CLOSURE) {
-//      fullTrace.completeTrace();
-//      return;
-//    }
-//
-//    if (phaseId == RefCount.RELEASE) {
-//      fullTrace.release();
-//      super.collectionPhase(phaseId, primary);
-//      return;
-//    }
+		if (phaseId == RefCount.CLOSURE) {
+			System.out.println("CLOSURE");
+			rctl.completeTrace();
+			return;
+		}
 
-    super.collectionPhase(phaseId, primary);
-  }
+		if (phaseId == RefCount.RELEASE) {
+			System.out.println("RELEASE");
+			rctl.release();
+			super.collectionPhase(phaseId, primary);
+			return;
+		}
 
 
-  /****************************************************************************
-   * Miscellaneous
-   */
+		super.collectionPhase(phaseId, primary);
+	}
+	//
+	//
+	//	/****************************************************************************
+	//	 * Miscellaneous
+	//	 */
+//	public RefCountCollector(){
+//		//	rootTrace = new RCFindRootSetTraceLocal(global().rootTrace, newRootBuffer);
+//		//enwRootBuffer = new ObjectReferenceDeque("new-root",global().newRootPool());
+//	}
 
-  /** @return The active global plan as an <code>MS</code> instance. */
-  @Inline
-  private static RefCount global() {
-    return (RefCount) VM.activePlan.global();
-  }
+//	@Override
+//	public void collect() {
+//		//		Phase.beginNewPhaseStack(Phase.scheduleComplex());
+//		super.collect();
+//	}
+	//
+	//
+	//	/** @return The active global plan as an <code>MS</code> instance. */
+	@Inline
+	private static RefCount global() {
+		return (RefCount) VM.activePlan.global();
+	}
 
-  /** @return The current trace instance. */
-//  @Override
-//  public final TraceLocal getCurrentTrace() {
-//    return currentTrace;
-//  }
+	/** @return The current trace instance. */
+	@Override
+	public final TraceLocal getCurrentTrace() {
+		return currentTrace;
+	}
 }
