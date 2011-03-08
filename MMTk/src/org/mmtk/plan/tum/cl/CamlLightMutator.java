@@ -42,178 +42,180 @@ import org.vmmagic.unboxed.*;
 @Uninterruptible
 public class CamlLightMutator extends StopTheWorldMutator {
 
-  private static final CamlLightTrace clt = new CamlLightTrace();
-  
-  /************************************************************************
-   * Instance fields
-   */
-//  private final MarkSweepLocal ms = new MarkSweepLocal(CamlLight.msSpace);
-  private final ExplicitFreeListLocal cs = new ExplicitFreeListLocal(CamlLight.camlSpace);
+	private static final CamlLightTrace clt = new CamlLightTrace();
 
-  /****************************************************************************
-   * Mutator-time allocation
-   */
+	/************************************************************************
+	 * Instance fields
+	 */
+	//  private final MarkSweepLocal ms = new MarkSweepLocal(CamlLight.msSpace);
+	private final ExplicitFreeListLocal cs = new ExplicitFreeListLocal(CamlLight.camlSpace);
 
-  /**
-   * Allocate memory for an object.
-   *
-   * @param bytes The number of bytes required for the object.
-   * @param align Required alignment for the object.
-   * @param offset Offset associated with the alignment.
-   * @param allocator The allocator associated with this request.
-   * @param site Allocation site
-   * @return The address of the newly allocated memory.
-   */
-  @Inline
-  @Override
-  public Address alloc(int bytes, int align, int offset, int allocator, int site) {
-    if (allocator == CamlLight.ALLOC_DEFAULT) {
-      //if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(false, "foo");
-      return cs.alloc(bytes, align, offset);
-    }
-    return super.alloc(bytes, align, offset, allocator, site);
-  }
+	/****************************************************************************
+	 * Mutator-time allocation
+	 */
 
-  /**
-   * Perform post-allocation actions.  For many allocators none are
-   * required.
-   *
-   * @param ref The newly allocated object
-   * @param typeRef the type reference for the instance being created
-   * @param bytes The size of the space to be allocated (in bytes)
-   * @param allocator The allocator number to be used for this allocation
-   */
-  @Inline
-  @Override
-  public void postAlloc(ObjectReference ref, ObjectReference typeRef,
-      int bytes, int allocator) {
-    if (allocator == CamlLight.ALLOC_DEFAULT) {
-      ExplicitFreeListSpace.unsyncSetLiveBit(ref);
-      CamlLightHeader.initializeHeader(ref, false);
-    } else {
-      super.postAlloc(ref, typeRef, bytes, allocator);
-    }
-  }
+	/**
+	 * Allocate memory for an object.
+	 *
+	 * @param bytes The number of bytes required for the object.
+	 * @param align Required alignment for the object.
+	 * @param offset Offset associated with the alignment.
+	 * @param allocator The allocator associated with this request.
+	 * @param site Allocation site
+	 * @return The address of the newly allocated memory.
+	 */
+	@Inline
+	@Override
+	public Address alloc(int bytes, int align, int offset, int allocator, int site) {
+		if (allocator == CamlLight.ALLOC_DEFAULT) {
+			//if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(false, "foo");
+			return cs.alloc(bytes, align, offset);
+		}
+		return super.alloc(bytes, align, offset, allocator, site);
+	}
 
-  /**
-   * Return the allocator instance associated with a space
-   * <code>space</code>, for this plan instance.
-   *
-   * @param space The space for which the allocator instance is desired.
-   * @return The allocator instance associated with this plan instance
-   * which is allocating into <code>space</code>, or <code>null</code>
-   * if no appropriate allocator can be established.
-   */
-  @Override
-  public Allocator getAllocatorFromSpace(Space space) {
-    if (space == CamlLight.camlSpace) return cs;
-    return super.getAllocatorFromSpace(space);
-  }
+	/**
+	 * Perform post-allocation actions.  For many allocators none are
+	 * required.
+	 *
+	 * @param ref The newly allocated object
+	 * @param typeRef the type reference for the instance being created
+	 * @param bytes The size of the space to be allocated (in bytes)
+	 * @param allocator The allocator number to be used for this allocation
+	 */
+	@Inline
+	@Override
+	public void postAlloc(ObjectReference ref, ObjectReference typeRef,
+			int bytes, int allocator) {
+		if (allocator == CamlLight.ALLOC_DEFAULT) {
+			ExplicitFreeListSpace.unsyncSetLiveBit(ref);
+			CamlLightHeader.initializeHeader(ref, false);
+		} else {
+			super.postAlloc(ref, typeRef, bytes, allocator);
+		}
+	}
+
+	/**
+	 * Return the allocator instance associated with a space
+	 * <code>space</code>, for this plan instance.
+	 *
+	 * @param space The space for which the allocator instance is desired.
+	 * @return The allocator instance associated with this plan instance
+	 * which is allocating into <code>space</code>, or <code>null</code>
+	 * if no appropriate allocator can be established.
+	 */
+	@Override
+	public Allocator getAllocatorFromSpace(Space space) {
+		if (space == CamlLight.camlSpace) return cs;
+		return super.getAllocatorFromSpace(space);
+	}
 
 
-  /****************************************************************************
-   * Collection
-   */
-  
-  public static final void delete(ObjectReference obj) {
-    if (VM.VERIFY_ASSERTIONS) {
-      VM.assertions._assert(CamlLight.isRefCountObject(obj));
-      //VM.assertions._assert(CamlLightHeader.isLiveRC(obj));
-    }
-    if(CamlLightHeader.decRC(obj) == CamlLightHeader.RC_ZERO) {
-      VM.scanning.scanObject(clt, obj);
-      //CamlLight.camlSpace.free(obj);
-    }
-  }
+	/****************************************************************************
+	 * Collection
+	 */
 
-  /**
-   * Perform a per-mutator collection phase.
-   *
-   * @param phaseId The collection phase to perform
-   * @param primary perform any single-threaded local activities.
-   */
-  @Inline
-  @Override
-  public final void collectionPhase(short phaseId, boolean primary) {
-    
-//     if (phaseId == CamlLight.PREPARE) {
-//       super.collectionPhase(phaseId, primary);
-//       ms.prepare();
-//       return;
-//     }
-//
-//     if (phaseId == CamlLight.RELEASE) {
-//       ms.release();
-//       super.collectionPhase(phaseId, primary);
-//       return;
-//     }
-     
-     super.collectionPhase(phaseId, primary);
+	public static final void delete(ObjectReference obj) {
+		if (VM.VERIFY_ASSERTIONS) {
+			VM.assertions._assert(CamlLight.isRefCountObject(obj));
+			//VM.assertions._assert(CamlLightHeader.isLiveRC(obj));
+		}
+		// TODO: decRC dekrementiert und testet dann!!!! -> hier auf RC_ZERO abzufragen kommt evtl zu spät
+		if(CamlLightHeader.getRC(obj)>0)
+			if(CamlLightHeader.decRC(obj) == CamlLightHeader.RC_ZERO) {
+				VM.scanning.scanObject(clt, obj);
+				CamlLight.camlSpace.free(obj);
+			}
+	}
 
-  }
-  
-  @Inline
-  @Override
-  public void objectReferenceWrite(ObjectReference src, Address slot,
-                           ObjectReference tgt, Word metaDataA,
-                           Word metaDataB, int mode) {
-//    Log.writeln("objectReferenceWrite");
-//    Log.writeln(src);
-//    Log.writeln(slot);
-//    Log.writeln(tgt);
-//    Log.writeln(metaDataA);
-//    Log.writeln(metaDataB);
-//    Log.writeln(mode);
-//    
-    //Log.writeln("-> objectReferenceWrite [src: " + src + ", slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB + ", mode: " + mode);
-//    if(Space.isInSpace(CamlLight.MS, src))
-//      Log.writeln("-> objectReferenceWrite");
-    
-    ObjectReference old = slot.loadObjectReference();
+	/**
+	 * Perform a per-mutator collection phase.
+	 *
+	 * @param phaseId The collection phase to perform
+	 * @param primary perform any single-threaded local activities.
+	 */
+	@Inline
+	@Override
+	public final void collectionPhase(short phaseId, boolean primary) {
 
-    writeBarrier(old, tgt);
+		//     if (phaseId == CamlLight.PREPARE) {
+		//       super.collectionPhase(phaseId, primary);
+		//       ms.prepare();
+		//       return;
+		//     }
+		//
+		//     if (phaseId == CamlLight.RELEASE) {
+		//       ms.release();
+		//       super.collectionPhase(phaseId, primary);
+		//       return;
+		//     }
 
-    VM.barriers.objectReferenceWrite(src,tgt,metaDataA, metaDataB, mode);
-  }
-  
-  @Inline
-  @Override
-  public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt,
-      Word metaDataA, Word metaDataB) {
-    //Log.writeln("-> objectReferenceNonHeapWrite [slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB);
-//    Log.writeln("-> objectReferenceNonHeapWrite");
-//    Log.writeln(slot);
-//    Log.writeln(tgt);
-//    Log.writeln(metaDataA);
-//    Log.writeln(metaDataB);
+		super.collectionPhase(phaseId, primary);
 
-    ObjectReference old = slot.loadObjectReference();
+	}
 
-    writeBarrier(old, tgt);
+	@Inline
+	@Override
+	public void objectReferenceWrite(ObjectReference src, Address slot,
+			ObjectReference tgt, Word metaDataA,
+			Word metaDataB, int mode) {
+		//    Log.writeln("objectReferenceWrite");
+		//    Log.writeln(src);
+		//    Log.writeln(slot);
+		//    Log.writeln(tgt);
+		//    Log.writeln(metaDataA);
+		//    Log.writeln(metaDataB);
+		//    Log.writeln(mode);
+		//    
+		//Log.writeln("-> objectReferenceWrite [src: " + src + ", slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB + ", mode: " + mode);
+		//    if(Space.isInSpace(CamlLight.MS, src))
+		//      Log.writeln("-> objectReferenceWrite");
 
-    VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
-  }
-  
-  @Inline
-  @Override
-  public boolean objectReferenceTryCompareAndSwap(ObjectReference src, Address slot,
-      ObjectReference old, ObjectReference tgt, Word metaDataA,
-      Word metaDataB, int mode) {
+		ObjectReference old = slot.loadObjectReference();
 
-    writeBarrier(old, tgt);
-      
-    return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
-  }
-  
-  @Inline
-  private void writeBarrier(ObjectReference old, ObjectReference tgt) {
+		writeBarrier(old, tgt);
 
-    if (tgt != null && !tgt.isNull() && CamlLight.isRefCountObject(tgt))
-      CamlLightHeader.incRC(tgt);
+		VM.barriers.objectReferenceWrite(src,tgt,metaDataA, metaDataB, mode);
+	}
 
-    if (old != null && !old.isNull() && CamlLight.isRefCountObject(old)) {
-      delete(old);
-    }
-  }
+	@Inline
+	@Override
+	public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt,
+			Word metaDataA, Word metaDataB) {
+		//Log.writeln("-> objectReferenceNonHeapWrite [slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB);
+		//    Log.writeln("-> objectReferenceNonHeapWrite");
+		//    Log.writeln(slot);
+		//    Log.writeln(tgt);
+		//    Log.writeln(metaDataA);
+		//    Log.writeln(metaDataB);
+
+		ObjectReference old = slot.loadObjectReference();
+
+		writeBarrier(old, tgt);
+
+		VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
+	}
+
+	@Inline
+	@Override
+	public boolean objectReferenceTryCompareAndSwap(ObjectReference src, Address slot,
+			ObjectReference old, ObjectReference tgt, Word metaDataA,
+			Word metaDataB, int mode) {
+
+		writeBarrier(old, tgt);
+
+		return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
+	}
+
+	@Inline
+	private void writeBarrier(ObjectReference old, ObjectReference tgt) {
+
+		if (tgt != null && !tgt.isNull() && CamlLight.isRefCountObject(tgt))
+			CamlLightHeader.incRC(tgt);
+
+		if (old != null && !old.isNull() && CamlLight.isRefCountObject(old)) {
+			delete(old);
+		}
+	}
 
 }
