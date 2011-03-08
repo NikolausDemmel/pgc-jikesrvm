@@ -1,1 +1,1 @@
-/home/mpdeimos/gc/camlCompiler/compiler/test/bigbang/simple.cl
+let a = 1 in a
