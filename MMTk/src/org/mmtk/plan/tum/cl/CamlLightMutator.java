@@ -15,6 +15,7 @@ package org.mmtk.plan.tum.cl;
 import org.mmtk.plan.StopTheWorldMutator;
 import org.mmtk.policy.MarkSweepLocal;
 import org.mmtk.policy.Space;
+import org.mmtk.utility.Log;
 import org.mmtk.utility.alloc.Allocator;
 import org.mmtk.vm.VM;
 
@@ -132,7 +133,7 @@ public class CamlLightMutator extends StopTheWorldMutator {
      }
      
      super.collectionPhase(phaseId, primary);
-     
+
   }
   
   @Inline
@@ -140,12 +141,33 @@ public class CamlLightMutator extends StopTheWorldMutator {
   public void objectReferenceWrite(ObjectReference src, Address slot,
                            ObjectReference tgt, Word metaDataA,
                            Word metaDataB, int mode) {
-    System.err.println("-> objectReferenceWrite [src: " + src + ", slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB + ", mode: " + mode);
-//      if(RefCount.isRefCountObject(tgt)) {
-//          RefCountHeader.incRC(tgt);
-//      }
-    //coalescingWriteBarrierSlow(src);
+    Log.writeln("objectReferenceWrite");
+    Log.writeln(src);
+    Log.writeln(slot);
+    Log.writeln(tgt);
+    Log.writeln(metaDataA);
+    Log.writeln(metaDataB);
+    Log.writeln(mode);
+    
+    //Log.writeln("-> objectReferenceWrite [src: " + src + ", slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB + ", mode: " + mode);
+//    if(Space.isInSpace(CamlLight.MS, src))
+//      Log.writeln("-> objectReferenceWrite");
+
     VM.barriers.objectReferenceWrite(src,tgt,metaDataA, metaDataB, mode);
+  }
+  
+  @Inline
+  @Override
+  public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt,
+      Word metaDataA, Word metaDataB) {
+    //Log.writeln("-> objectReferenceNonHeapWrite [slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB);
+    Log.writeln("-> objectReferenceNonHeapWrite");
+    Log.writeln(slot);
+    Log.writeln(tgt);
+    Log.writeln(metaDataA);
+    Log.writeln(metaDataB);
+
+    VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
   }
   
 }

@@ -33,11 +33,11 @@ public class CamlLightConstraints extends StopTheWorldConstraints {
   @Override
   public int maxNonLOSDefaultAllocBytes() { return SegregatedFreeListSpace.MAX_FREELIST_OBJECT_BYTES; }
   
-  @Override
-  public boolean needsAddressWriteBarrier() { return true; }
-  @Override
-  public boolean needsWordWriteBarrier() { return true; }
-  
+//  @Override
+//  public boolean needsAddressWriteBarrier() { return true; }
+//  @Override
+//  public boolean needsWordWriteBarrier() { return true; }
+//  
   @Override
   public boolean needsObjectReferenceWriteBarrier() { return true; }
   @Override
