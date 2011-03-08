@@ -22,7 +22,10 @@ import org.mmtk.harness.Mutator;
 import org.mmtk.harness.lang.Trace.Item;
 import org.mmtk.harness.lang.runtime.ObjectValue;
 import org.mmtk.harness.lang.runtime.StackFrame;
+import org.mmtk.harness.lang.runtime.Value;
+import org.mmtk.harness.vm.Memory;
 import org.mmtk.plan.TraceLocal;
+import org.vmmagic.unboxed.Address;
 import org.vmmagic.unboxed.ObjectReference;
 
 /**
@@ -60,6 +63,7 @@ public class Env extends Mutator {
    * @param frame Stack frame to push
    */
   public void push(StackFrame frame) {
+	frame.setFrameNumber(stack.size());
     stack.push(frame);
     Trace.trace(Item.ENV,"push()");
   }
@@ -68,6 +72,8 @@ public class Env extends Mutator {
    * Exit from a procedure, popping the top stack frame.
    */
   public void pop() {
+    StackFrame frame = stack.peek();
+    frame.clearStackFrame();
     stack.pop();
     Trace.trace(Item.ENV,"pop()");
   }
@@ -77,6 +83,10 @@ public class Env extends Mutator {
    */
   public StackFrame top() {
     return stack.peek();
+  }
+  
+  public StackFrame get(int index) {
+	  return stack.get(index >= 0 ? index : stack.size() + index - 1);
   }
 
   /**
@@ -146,6 +156,29 @@ public class Env extends Mutator {
   public void end() {
     if (!(expectedThrowable == null)) fail(("Expected exception of class " + expectedThrowable + " not found"));
     super.end();
+  }
+  
+  @Override
+  public void barrierStoreObjectReference(Address slot, ObjectReference target) {
+	  // Get stack frame and slot from address
+	  Address s = slot.minus(Memory.HEAP_END.toInt());
+	  int stackSlot = s.toInt() & 0x0000FFFF;
+	  int stackFrame = s.toInt() >> 16;
+	  
+	  stack.get(stackFrame).barrierSet(stackSlot, new ObjectValue(target));
+  }
+  
+  @Override
+  public ObjectReference getObjectReference(Address slot) {
+	  // Get stack frame and slot form address
+	  Address s = slot.minus(Memory.HEAP_END.toInt());
+	  int stackSlot = s.toInt() & 0x0000FFFF;
+	  int stackFrame = s.toInt() >> 16;
+	  
+	  Value object = stack.get(stackFrame).get(stackSlot);
+	  if (object == null || !(object instanceof ObjectValue))
+		  return ObjectReference.nullReference();
+	  return ((ObjectValue) object).getObjectValue();
   }
 
   /**

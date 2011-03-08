@@ -30,7 +30,6 @@ import org.mmtk.harness.vm.Scanning;
 import org.mmtk.plan.MutatorContext;
 import org.mmtk.plan.Plan;
 import org.mmtk.plan.TraceLocal;
-import org.mmtk.vm.Collection;
 import org.vmmagic.unboxed.Address;
 import org.vmmagic.unboxed.ObjectReference;
 
@@ -392,6 +391,21 @@ public abstract class Mutator {
     if (!(result != null)) fail("Allocation returned null");
     return result;
   }
+  
+  /**
+   * Called by the barrier to store a object reference on the stack
+   * 
+   * @param slot
+   * @param target
+   */
+  public abstract void barrierStoreObjectReference(Address slot, ObjectReference target);
+  
+  /**
+   * Load a object reference from the stack
+   * 
+   * @param slot
+   */
+  public abstract ObjectReference getObjectReference(Address slot);
 
   /**
    * Return a string identifying the allocation site of an object
