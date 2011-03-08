@@ -170,4 +170,11 @@ public class CamlLightMutator extends StopTheWorldMutator {
     VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
   }
   
+	@Override
+	public boolean objectReferenceTryCompareAndSwap(ObjectReference src,
+			Address slot, ObjectReference old, ObjectReference tgt,
+			Word metaDataA, Word metaDataB, int mode) {
+		return VM.barriers.objectReferenceTryCompareAndSwap(src, old, tgt, metaDataA, metaDataB, mode);
+	}
+  
 }
