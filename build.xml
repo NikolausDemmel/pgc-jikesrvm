@@ -12,7 +12,7 @@
  -->
 <project name="JikesRVM" default="main" basedir=".">
   
-  <property name="build.sysclasspath" value="ignore" />
+  <!-- property name="build.sysclasspath" value="ignore" /> -->
 
   <property name="rvm.version" value="3.1.1+svn"/>
   <!-- <property name="svn.revision" value="XXX"/> -->
