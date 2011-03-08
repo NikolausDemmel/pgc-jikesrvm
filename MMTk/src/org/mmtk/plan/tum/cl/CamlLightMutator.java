@@ -122,7 +122,7 @@ public class CamlLightMutator extends StopTheWorldMutator {
     }
     if(CamlLightHeader.decRC(obj) == CamlLightHeader.RC_ZERO) {
       VM.scanning.scanObject(clt, obj);
-      CamlLight.camlSpace.free(obj);
+      //CamlLight.camlSpace.free(obj);
     }
   }
 
@@ -169,11 +169,9 @@ public class CamlLightMutator extends StopTheWorldMutator {
 //    if(Space.isInSpace(CamlLight.MS, src))
 //      Log.writeln("-> objectReferenceWrite");
     
-    if (CamlLight.isInitialized()) {
-      ObjectReference old = slot.loadObjectReference();
+    ObjectReference old = slot.loadObjectReference();
 
-      writeBarrier(old, tgt);
-    }
+    writeBarrier(old, tgt);
 
     VM.barriers.objectReferenceWrite(src,tgt,metaDataA, metaDataB, mode);
   }
@@ -189,11 +187,9 @@ public class CamlLightMutator extends StopTheWorldMutator {
 //    Log.writeln(metaDataA);
 //    Log.writeln(metaDataB);
 
-    if (CamlLight.isInitialized()) {
-      ObjectReference old = slot.loadObjectReference();
+    ObjectReference old = slot.loadObjectReference();
 
-      writeBarrier(old, tgt);
-    }
+    writeBarrier(old, tgt);
 
     VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
   }
@@ -204,20 +200,18 @@ public class CamlLightMutator extends StopTheWorldMutator {
       ObjectReference old, ObjectReference tgt, Word metaDataA,
       Word metaDataB, int mode) {
 
-    if(CamlLight.isInitialized()) { 
-      writeBarrier(old, tgt);
-    }
-    
+    writeBarrier(old, tgt);
+      
     return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
   }
   
   @Inline
   private void writeBarrier(ObjectReference old, ObjectReference tgt) {
 
-    if (!tgt.isNull() && CamlLight.isRefCountObject(tgt))
+    if (tgt != null && !tgt.isNull() && CamlLight.isRefCountObject(tgt))
       CamlLightHeader.incRC(tgt);
 
-    if (!old.isNull() && CamlLight.isRefCountObject(old)) {
+    if (old != null && !old.isNull() && CamlLight.isRefCountObject(old)) {
       delete(old);
     }
   }

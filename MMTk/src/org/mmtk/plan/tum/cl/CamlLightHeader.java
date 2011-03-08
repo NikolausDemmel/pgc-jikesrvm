@@ -13,6 +13,7 @@
 package org.mmtk.plan.tum.cl;
 
 import org.mmtk.utility.Constants;
+import org.mmtk.utility.Log;
 import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Uninterruptible;
@@ -44,8 +45,9 @@ public class CamlLightHeader implements Constants {
   public static final Word COLOR_BIT_MASK = Word.one().lsh(2).minus(Word.one()); // "4-1" : ...011
 
   /* Reference counting increments */
-  public static final int INCREMENT_SHIFT = 0;
-  public static final Word INCREMENT = Word.one().lsh(INCREMENT_SHIFT);
+//  public static final int INCREMENT_SHIFT = 0;
+//  public static final Word INCREMENT = Word.one().lsh(INCREMENT_SHIFT);
+  public static final Word INCREMENT = Word.one();
   // TODO: wieso nicht Word.zero().not(); als limit ?
   public static final Word INCREMENT_LIMIT = Word.one().lsh(BITS_IN_ADDRESS-1).not();
   public static final Word LIVE_THRESHOLD = INCREMENT;
@@ -72,11 +74,11 @@ public class CamlLightHeader implements Constants {
    * @param object The object whose liveness is to be tested
    * @return True if the object is alive
    */
-  @Inline
-  @Uninterruptible
-  public static boolean isLiveRC(ObjectReference object) {
-    return object.toAddress().loadWord(RC_HEADER_OFFSET).GE(LIVE_THRESHOLD);
-  }
+//  @Inline
+//  @Uninterruptible
+//  public static boolean isLiveRC(ObjectReference object) {
+//    return object.toAddress().loadWord(RC_HEADER_OFFSET).GE(LIVE_THRESHOLD);
+//  }
 
   /**
    * Return the reference count for the object.
@@ -87,7 +89,8 @@ public class CamlLightHeader implements Constants {
   @Inline
   @Uninterruptible
   public static int getRC(ObjectReference object) {
-    return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).toInt();
+    //return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).toInt();
+    return object.toAddress().loadWord(RC_HEADER_OFFSET).toInt();
   }
 
   /**
@@ -103,8 +106,16 @@ public class CamlLightHeader implements Constants {
     do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
       newValue = oldValue.plus(INCREMENT);
-      if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
+//      if(!newValue.LE(INCREMENT_LIMIT)) {
+//        Log.writeln(newValue);
+//        Log.writeln(INCREMENT);
+//        Log.writeln(LIVE_THRESHOLD);
+//      }
+      //if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
+    Log.writeln("inc");
+    Log.writeln(object);
+    Log.writeln(newValue);
     return oldValue.LT(LIVE_THRESHOLD); // old value < threshold means that new value must be "1" (i.e. INCREMENT)
   }
 
@@ -124,7 +135,7 @@ public class CamlLightHeader implements Constants {
     int rtn;
     if (VM.VERIFY_ASSERTIONS) {
       VM.assertions._assert(CamlLight.isRefCountObject(object));
-      VM.assertions._assert(isLiveRC(object));
+      //VM.assertions._assert(isLiveRC(object));
     }
     do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
@@ -135,10 +146,14 @@ public class CamlLightHeader implements Constants {
         rtn = RC_POSITIVE;
       }
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
+    Log.writeln("dec");
+    Log.writeln(object);
+    Log.writeln(newValue);
     return rtn;
   }
   
   public static boolean isRCOne(ObjectReference object) {
-	  return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).EQ(INCREMENT);
+//	  return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).EQ(INCREMENT);
+      return object.toAddress().loadWord(RC_HEADER_OFFSET).EQ(INCREMENT);
   }
 }
