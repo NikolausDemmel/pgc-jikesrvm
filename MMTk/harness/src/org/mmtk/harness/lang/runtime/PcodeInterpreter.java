@@ -93,12 +93,13 @@ public final class PcodeInterpreter {
    */
   private void methodReturn(ReturnOp retOp) {
     StackFrame calleeFrame = env.top();
-    env.pop();
-    StackFrame callerFrame = env.top();
+    //env.pop();
+    StackFrame callerFrame = env.get(-1);
 
     if (retOp.hasOperand()) {
       callerFrame.setResult(retOp.getOperand(calleeFrame));
     }
+    env.pop(); // Do the popping, here to clear values correct
     nesting--;
     pc = callerFrame.getSavedPc();
     code = callerFrame.getSavedMethod();

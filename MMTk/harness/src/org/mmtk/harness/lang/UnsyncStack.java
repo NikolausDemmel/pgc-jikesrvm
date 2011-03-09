@@ -51,6 +51,14 @@ public class UnsyncStack<E> implements Iterable<E> {
   public E peek() {
     return elements.get(elements.size()-1);
   }
+  
+  /**
+   * @param index
+   * @return The element of the stack at index
+   */
+  public E get(int index) {
+	  return elements.get(index);
+  }
 
   /**
    * # elements in the stack.

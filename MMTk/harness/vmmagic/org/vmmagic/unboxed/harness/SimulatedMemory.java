@@ -14,9 +14,11 @@ package org.vmmagic.unboxed.harness;
 
 import java.util.ArrayList;
 
+import org.mmtk.harness.Mutator;
 import org.mmtk.harness.lang.Trace;
 import org.mmtk.harness.lang.Trace.Item;
 import org.mmtk.harness.scheduler.Scheduler;
+import org.mmtk.harness.vm.Memory;
 import org.vmmagic.unboxed.Address;
 import org.vmmagic.unboxed.Extent;
 import org.vmmagic.unboxed.Word;
@@ -190,6 +192,11 @@ public final class SimulatedMemory {
    * @return The ArchitecturalWord at <code>address</code>
    */
   public static ArchitecturalWord getWord(Address address) {
+	// Use this to load from stack
+	if (address.GE(Memory.HEAP_END)) {
+		return ArchitecturalWord.fromLong(Mutator.current().getObjectReference(address).toAddress().toLong());
+	}
+	
     switch (ArchitecturalWord.getModel()) {
       case BITS32:
         return ArchitecturalWord.fromIntSignExtend(getInt(address));
@@ -268,6 +275,13 @@ public final class SimulatedMemory {
    * @return The previous value of <code>address</code>
    */
   public static ArchitecturalWord setWord(Address address, ArchitecturalWord value) {
+	// This allows us to store to the stack
+	if (address.GE(Memory.HEAP_END)) {
+		ArchitecturalWord result = getWord(address);
+	    Mutator.current().barrierStoreObjectReference(address, Address.fromLong(value.toLongZeroExtend()).toObjectReference());
+	    return result;
+	}
+	  
     switch (ArchitecturalWord.getModel()) {
       case BITS32:
         return ArchitecturalWord.fromLong(setInt(address, value.toInt()));

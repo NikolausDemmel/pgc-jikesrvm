@@ -16,14 +16,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.mmtk.harness.Mutator;
 import org.mmtk.harness.lang.Declaration;
 import org.mmtk.harness.lang.Trace;
 import org.mmtk.harness.lang.Trace.Item;
 import org.mmtk.harness.lang.pcode.PseudoOp;
 import org.mmtk.harness.lang.type.Type;
+import org.mmtk.harness.vm.ActivePlan;
+import org.mmtk.harness.vm.Memory;
 import org.mmtk.harness.vm.ObjectModel;
 import org.mmtk.harness.vm.ReferenceProcessor;
 import org.mmtk.plan.TraceLocal;
+import org.vmmagic.unboxed.Address;
 import org.vmmagic.unboxed.ObjectReference;
 
 /**
@@ -52,6 +56,11 @@ public class StackFrame {
   private PseudoOp[] savedCode;
   /** The slot for the return value of a method call */
   private int resultSlot = NO_SUCH_SLOT;
+  /**
+   * The number of the frame in the complete stack
+   * This is required to generate unique addresses
+   */
+  private int frameNumber;
 
   /**
    * Create a stack frame, given a list of declarations and a quantity of temporaries
@@ -92,6 +101,15 @@ public class StackFrame {
     }
     return ConstantPool.get(slot);
   }
+  
+  /**
+   * This is called when the stack frame is pushed on the stack
+   * to generate unique addresses
+   * @param n The position of the stack frame on the global stack
+   */
+  public void setFrameNumber(int n) {
+	  frameNumber = n;
+  }
 
   /**
    * Return the type of the variable at the given slot.
@@ -112,7 +130,22 @@ public class StackFrame {
     if (Trace.isEnabled(Item.EVAL)) {
       Trace.printf(Item.EVAL, "%s %s = %s",value.type().toString(),getSlotName(slot),value.toString());
     }
-    values[slot] = value;
+    if (ActivePlan.constraints.needsObjectReferenceNonHeapWriteBarrier() && value instanceof ObjectValue) {
+    	Mutator.current().getContext()
+   			.objectReferenceNonHeapWrite(calculateAddress(slot), ((ObjectValue) value).getObjectValue(), null, null);
+    } else {
+    	values[slot] = value;
+    }
+  }
+  
+  /**
+   * Saves the value directly, should only be called by the barrier
+   * 
+   * @param slot
+   * @param value
+   */
+  public void barrierSet(int slot, Value value) {
+	  values[slot] = value;
   }
 
   private String getSlotName(int slot) {
@@ -120,6 +153,18 @@ public class StackFrame {
       return names[slot];
     }
     return "t" + slot;
+  }
+  
+  /**
+   * Called when the stack frame is pushed from the global stack
+   * Calls a non heap write barrier
+   */
+  public void clearStackFrame() {
+	  for (int i = 0; i<values.length; i++) {
+		  if (values[i] != null && values[i] instanceof ObjectValue) {
+			  set(i, new ObjectValue(ObjectReference.nullReference()));
+		  }
+	  }
   }
 
   /**
@@ -180,6 +225,10 @@ public class StackFrame {
       }
     }
     return roots;
+  }
+  
+  private Address calculateAddress(int slot) {
+	  return Address.fromLong(((frameNumber << 16) | slot)).plus(Memory.HEAP_END.toInt());
   }
 
   /**

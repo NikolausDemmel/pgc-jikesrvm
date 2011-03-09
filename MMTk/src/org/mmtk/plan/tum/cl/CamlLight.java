@@ -17,7 +17,6 @@ import org.mmtk.policy.MarkSweepSpace;
 import org.mmtk.policy.ExplicitFreeListSpace;
 import org.mmtk.policy.Space;
 import org.mmtk.utility.heap.VMRequest;
-import org.mmtk.vm.VM;
 
 import org.vmmagic.pragma.*;
 import org.vmmagic.unboxed.ObjectReference;
@@ -33,22 +32,24 @@ public class CamlLight extends StopTheWorld {
   /*****************************************************************************
    * Class variables
    */
-  public static final MarkSweepSpace msSpace = new MarkSweepSpace("ms", VMRequest.create());
   public static final ExplicitFreeListSpace camlSpace = new ExplicitFreeListSpace ("cs", VMRequest.create());
-  public static final int MS = msSpace.getDescriptor();
   public static final int CS = camlSpace.getDescriptor();
 
 
   /*****************************************************************************
    * Instance variables
    */
-  public final Trace msTrace = new Trace(metaDataSpace);
+  //public final Trace msTrace = new Trace(metaDataSpace);
 
 
   /*****************************************************************************
    * Collection
    */
 
+  public static final boolean isRefCountObject(ObjectReference object) {
+    return !object.isNull() && !Space.isInSpace(CS, object);
+  }
+  
   /**
    * Perform a (global) collection phase.
    *
@@ -58,22 +59,22 @@ public class CamlLight extends StopTheWorld {
   @Override
   public final void collectionPhase(short phaseId) {
 
-    if (phaseId == PREPARE) {
-      super.collectionPhase(phaseId);
-      msTrace.prepare();
-      msSpace.prepare(true);
-      return;
-    }
-    if (phaseId == CLOSURE) {
-      msTrace.prepare();
-      return;
-    }
-    if (phaseId == RELEASE) {
-      msTrace.release();
-      msSpace.release();
-      super.collectionPhase(phaseId);
-      return;
-    }
+//    if (phaseId == PREPARE) {
+//      super.collectionPhase(phaseId);
+//      msTrace.prepare();
+//      msSpace.prepare(true);
+//      return;
+//    }
+//    if (phaseId == CLOSURE) {
+//      msTrace.prepare();
+//      return;
+//    }
+//    if (phaseId == RELEASE) {
+//      msTrace.release();
+//      msSpace.release();
+//      super.collectionPhase(phaseId);
+//      return;
+//    }
     
     super.collectionPhase(phaseId);
 
@@ -93,13 +94,13 @@ public class CamlLight extends StopTheWorld {
    */
   @Override
   public int getPagesUsed() {
-    return (msSpace.reservedPages() + camlSpace.reservedPages() + super.getPagesUsed());
+    return (camlSpace.reservedPages() + super.getPagesUsed());
   }
 
   @Override
   public boolean willNeverMove(ObjectReference object) {
-    if (Space.isInSpace(MS, object))
-      return true;
+//    if (Space.isInSpace(MS, object))
+//      return true;
     if (Space.isInSpace(CS, object))
       return true;
     return super.willNeverMove(object);
