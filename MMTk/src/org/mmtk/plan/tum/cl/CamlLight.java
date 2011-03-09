@@ -46,8 +46,8 @@ public class CamlLight extends StopTheWorld {
    * Collection
    */
 
-  public static final boolean isRefCountObject(ObjectReference object) {
-    return !object.isNull() && !Space.isInSpace(CS, object);
+  public static final boolean isCamlLightObject(ObjectReference object) {
+    return !object.isNull() && Space.isInSpace(CS, object);
   }
   
   /**
