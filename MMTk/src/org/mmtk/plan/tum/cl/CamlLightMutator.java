@@ -68,7 +68,6 @@ public class CamlLightMutator extends StopTheWorldMutator {
   @Override
   public Address alloc(int bytes, int align, int offset, int allocator, int site) {
     if (allocator == CamlLight.ALLOC_DEFAULT) {
-      //if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(false, "foo");
       return cs.alloc(bytes, align, offset);
     }
     return super.alloc(bytes, align, offset, allocator, site);
@@ -88,8 +87,17 @@ public class CamlLightMutator extends StopTheWorldMutator {
   public void postAlloc(ObjectReference ref, ObjectReference typeRef,
       int bytes, int allocator) {
     if (allocator == CamlLight.ALLOC_DEFAULT) {
-      ExplicitFreeListSpace.unsyncSetLiveBit(ref);
+
+//      ExplicitFreeListSpace.unsyncSetLiveBit(ref);
+//      CamlLightHeader.initializeHeader(ref, false);
       CamlLightHeader.initializeHeader(ref, false);
+
+//      Log.prependThreadId();
+      Log.write("postAlloc - ref: ");
+      Log.writeln(ref);
+//      Log.write(" typeRef: ");
+//      Log.writeln(typeRef);
+      
     } else {
       super.postAlloc(ref, typeRef, bytes, allocator);
     }
@@ -117,12 +125,16 @@ public class CamlLightMutator extends StopTheWorldMutator {
   
   public static final void delete(ObjectReference obj) {
     if (VM.VERIFY_ASSERTIONS) {
-      VM.assertions._assert(CamlLight.isRefCountObject(obj));
+      VM.assertions._assert(CamlLight.isCamlLightObject(obj));
       //VM.assertions._assert(CamlLightHeader.isLiveRC(obj));
     }
-    if(CamlLightHeader.decRC(obj) == CamlLightHeader.RC_ZERO) {
-      VM.scanning.scanObject(clt, obj);
-      //CamlLight.camlSpace.free(obj);
+    if(CamlLightHeader.getRC(obj) == CamlLightHeader.RC_ZERO) {
+      Log.writeln("trying to delete object with 0 rc.");
+    } else {
+      if (CamlLightHeader.decRC(obj) == CamlLightHeader.RC_ZERO) {
+        VM.scanning.scanObject(clt, obj);
+        // CamlLight.camlSpace.free(obj);
+      }
     }
   }
 
@@ -153,25 +165,100 @@ public class CamlLightMutator extends StopTheWorldMutator {
   }
   
   @Inline
+  @Override  
+  public void addressWrite(ObjectReference src, Address slot, Address value, Word metaDataA, Word metaDataB, int mode) {
+    if (CamlLight.isCamlLightObject(slot.loadObjectReference()) || CamlLight.isCamlLightObject(value.toObjectReference())) {
+      Address old = slot.loadAddress();
+      Log.write("addressWrite - src: ");
+      Log.write(src);
+      Log.write(" slot: ");
+      Log.write(slot);
+      Log.write(" value: ");
+      Log.write(value);
+      Log.write(" old: ");
+      Log.write(old);
+      Log.write(" metaDataA: ");
+      Log.write(metaDataA);
+      Log.write(" metaDataB: ");
+      Log.write(metaDataB);
+      Log.write(" mode: ");
+      Log.writeln(mode);
+    }
+    VM.barriers.addressWrite(src,value,metaDataA, metaDataB, mode);
+  }
+  
+  public boolean addressTryCompareAndSwap(ObjectReference src, Address slot, Address old, Address value, Word metaDataA, Word metaDataB, int mode) {
+    if (CamlLight.isCamlLightObject(old.toObjectReference()) || CamlLight.isCamlLightObject(value.toObjectReference())) {
+      Log.write("addressTryCompareAndSwap - src: ");
+      Log.write(src);
+      Log.write(" slot: ");
+      Log.write(slot);
+      Log.write(" value: ");
+      Log.write(value);
+      Log.write(" old: ");
+      Log.write(old);
+      Log.write(" metaDataA: ");
+      Log.write(metaDataA);
+      Log.write(" metaDataB: ");
+      Log.write(metaDataB);
+      Log.write(" mode: ");
+      Log.writeln(mode);
+    }
+    return VM.barriers.addressTryCompareAndSwap(src,old,value,metaDataA,metaDataB,mode);
+  }
+
+  @Inline
+  @Override
+  public void wordWrite(ObjectReference src, Address slot, Word value, Word metaDataA, Word metaDataB, int mode) {
+    if (CamlLight.isCamlLightObject(slot.loadObjectReference()) || CamlLight.isCamlLightObject(value.toAddress().toObjectReference())) {
+      Word old = slot.loadWord();
+      Log.write("wordWrite - src: ");
+      Log.write(src);
+      Log.write(" slot: ");
+      Log.write(slot);
+      Log.write(" value: ");
+      Log.write(value);
+      Log.write(" old: ");
+      Log.write(old);
+      Log.write(" metaDataA: ");
+      Log.write(metaDataA);
+      Log.write(" metaDataB: ");
+      Log.write(metaDataB);
+      Log.write(" mode: ");
+      Log.writeln(mode);
+    }
+    VM.barriers.wordWrite(src,value,metaDataA, metaDataB, mode);
+  }
+  
+  public boolean wordTryCompareAndSwap(ObjectReference src, Address slot, Word old, Word value, Word metaDataA, Word metaDataB, int mode) {
+    if (CamlLight.isCamlLightObject(old.toAddress().toObjectReference()) || CamlLight.isCamlLightObject(value.toAddress().toObjectReference())) {
+      Log.write("wordTryCompareAndSwap - src: ");
+      Log.write(src);
+      Log.write(" slot: ");
+      Log.write(slot);
+      Log.write(" value: ");
+      Log.write(value);
+      Log.write(" old: ");
+      Log.write(old);
+      Log.write(" metaDataA: ");
+      Log.write(metaDataA);
+      Log.write(" metaDataB: ");
+      Log.write(metaDataB);
+      Log.write(" mode: ");
+      Log.writeln(mode);
+    }
+    return VM.barriers.wordTryCompareAndSwap(src,old,value,metaDataA,metaDataB,mode);
+  }
+  
+  @Inline
   @Override
   public void objectReferenceWrite(ObjectReference src, Address slot,
                            ObjectReference tgt, Word metaDataA,
                            Word metaDataB, int mode) {
-//    Log.writeln("objectReferenceWrite");
-//    Log.writeln(src);
-//    Log.writeln(slot);
-//    Log.writeln(tgt);
-//    Log.writeln(metaDataA);
-//    Log.writeln(metaDataB);
-//    Log.writeln(mode);
-//    
-    //Log.writeln("-> objectReferenceWrite [src: " + src + ", slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB + ", mode: " + mode);
-//    if(Space.isInSpace(CamlLight.MS, src))
-//      Log.writeln("-> objectReferenceWrite");
-    
+
     ObjectReference old = slot.loadObjectReference();
 
-    writeBarrier(old, tgt);
+    writeBarrier(old, tgt, "objectReferenceWrite");
 
     VM.barriers.objectReferenceWrite(src,tgt,metaDataA, metaDataB, mode);
   }
@@ -180,16 +267,10 @@ public class CamlLightMutator extends StopTheWorldMutator {
   @Override
   public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt,
       Word metaDataA, Word metaDataB) {
-    //Log.writeln("-> objectReferenceNonHeapWrite [slot: " + slot + ", tgt: " + tgt + ", metaDataA: " + metaDataA + ", metaDataB: " + metaDataB);
-//    Log.writeln("-> objectReferenceNonHeapWrite");
-//    Log.writeln(slot);
-//    Log.writeln(tgt);
-//    Log.writeln(metaDataA);
-//    Log.writeln(metaDataB);
 
     ObjectReference old = slot.loadObjectReference();
 
-    writeBarrier(old, tgt);
+    writeBarrier(old, tgt, "objectReferenceNonHeapWrite");
 
     VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
   }
@@ -200,18 +281,45 @@ public class CamlLightMutator extends StopTheWorldMutator {
       ObjectReference old, ObjectReference tgt, Word metaDataA,
       Word metaDataB, int mode) {
 
-    writeBarrier(old, tgt);
-      
+//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(old.equals(slot.loadObjectReference()));
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(old == slot.loadObjectReference());
+
+    
+    writeBarrier(old, tgt, "objectReferenceTryCompareAndSwap");
+    // NOTE: This could lead to a race condition, where another thread changes the old value in between.
     return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
   }
   
   @Inline
-  private void writeBarrier(ObjectReference old, ObjectReference tgt) {
+  private void writeBarrier(ObjectReference old, ObjectReference tgt, String debug) {
 
-    if (tgt != null && !tgt.isNull() && CamlLight.isRefCountObject(tgt))
+    if (VM.VERIFY_ASSERTIONS) {
+//      VM.assertions._assert(tgt != null, "tgt is null");
+//      VM.assertions._assert(old != null, "old is null");
+    }
+    
+    if (CamlLight.isCamlLightObject(tgt) || (old != null && CamlLight.isCamlLightObject(old))) {
+      Log.write("writeBarrier - old: ");
+      Log.write(old);
+      Log.write(" tgt: ");
+      Log.write(tgt);
+      Log.write(" called from: ");
+      Log.writeln(debug);
+    }
+    
+    if (tgt == null) {
+      Log.writeln("tgt is null");
+    }
+    
+    if (tgt != null && CamlLight.isCamlLightObject(tgt)) {
       CamlLightHeader.incRC(tgt);
+    }
+    
+    if (old == null) {
+      Log.writeln("old is null");
+    }
 
-    if (old != null && !old.isNull() && CamlLight.isRefCountObject(old)) {
+    if (old != null && CamlLight.isCamlLightObject(old)) {
       delete(old);
     }
   }

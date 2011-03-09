@@ -100,23 +100,25 @@ public class CamlLightHeader implements Constants {
    * @return True if the object has now RC 1
    */
   @Inline
-  public static boolean incRC(ObjectReference object) {
+  public static void incRC(ObjectReference object) {
     Word oldValue, newValue;
-    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(CamlLight.isRefCountObject(object));
+    
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(CamlLight.isCamlLightObject(object));
+    
     do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
       newValue = oldValue.plus(INCREMENT);
-//      if(!newValue.LE(INCREMENT_LIMIT)) {
-//        Log.writeln(newValue);
-//        Log.writeln(INCREMENT);
-//        Log.writeln(LIVE_THRESHOLD);
-//      }
-      //if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
-    Log.writeln("inc");
-    Log.writeln(object);
+
+//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
+    
+//    Log.prependThreadId();
+    Log.write("incRC - object: ");
+    Log.write(object);
+    Log.write(" newValue: ");
     Log.writeln(newValue);
-    return oldValue.LT(LIVE_THRESHOLD); // old value < threshold means that new value must be "1" (i.e. INCREMENT)
+    
+//    return oldValue.LT(LIVE_THRESHOLD); // old value < threshold means that new value must be "1" (i.e. INCREMENT)
   }
 
   /**
@@ -133,10 +135,12 @@ public class CamlLightHeader implements Constants {
   public static int decRC(ObjectReference object) {
     Word oldValue, newValue;
     int rtn;
+    
     if (VM.VERIFY_ASSERTIONS) {
-      VM.assertions._assert(CamlLight.isRefCountObject(object));
-      //VM.assertions._assert(isLiveRC(object));
+      VM.assertions._assert(CamlLight.isCamlLightObject(object));
+//      VM.assertions._assert(isLiveRC(object));
     }
+    
     do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
       newValue = oldValue.minus(INCREMENT);
@@ -146,14 +150,18 @@ public class CamlLightHeader implements Constants {
         rtn = RC_POSITIVE;
       }
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
-    Log.writeln("dec");
-    Log.writeln(object);
+
+//    Log.prependThreadId();
+    Log.write("decRC - object: ");
+    Log.write(object);
+    Log.write(" newValue: ");
     Log.writeln(newValue);
+    
     return rtn;
   }
   
-  public static boolean isRCOne(ObjectReference object) {
-//	  return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).EQ(INCREMENT);
-      return object.toAddress().loadWord(RC_HEADER_OFFSET).EQ(INCREMENT);
-  }
+//  public static boolean isRCOne(ObjectReference object) {
+////	  return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).EQ(INCREMENT);
+//      return object.toAddress().loadWord(RC_HEADER_OFFSET).EQ(INCREMENT);
+//  }
 }

@@ -14,6 +14,7 @@ package org.mmtk.plan.tum.cl;
 
 import org.mmtk.plan.TransitiveClosure;
 import org.mmtk.utility.Log;
+import org.mmtk.vm.VM;
 
 import org.vmmagic.pragma.*;
 import org.vmmagic.unboxed.*;
@@ -35,15 +36,22 @@ public final class CamlLightTrace extends TransitiveClosure {
    */
   @Inline
   public void processEdge(ObjectReference source, Address slot) {
+
     ObjectReference obj = slot.loadObjectReference();
     
-    Log.write("pE: ");
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(obj != null);
+
+//    Log.prependThreadId();
+    Log.write("processEdge - source: ");
     Log.write(source);
-    Log.write(" ");
-    Log.writeln(slot);
+    Log.write(" slot: ");
+    Log.write(slot);
+    Log.write(" obj: ");
+    Log.writeln(obj);
     
-    if (obj != null && !obj.isNull() && CamlLight.isRefCountObject(obj)) {
-      CamlLightMutator.delete(obj);
+    if (CamlLight.isCamlLightObject(obj)) {
+      slot.store(ObjectReference.nullReference());
+//      CamlLightMutator.delete(obj);
     }
   }
 }

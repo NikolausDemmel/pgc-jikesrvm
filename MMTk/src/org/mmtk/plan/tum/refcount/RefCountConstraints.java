@@ -42,12 +42,6 @@ public class RefCountConstraints extends StopTheWorldConstraints {
   @Override
   public boolean needsObjectReferenceNonHeapWriteBarrier() { return true;}
 
-
-//  @Override
-//  public boolean needsObjectReferenceReadBarrier() { return true; }
-//  @Override
-//  public boolean needsObjectReferenceNonHeapReadBarrier() { return true;}
-//  
   // just to make sure they are not called:
   @Override
   public boolean needsAddressWriteBarrier() { return true; }
