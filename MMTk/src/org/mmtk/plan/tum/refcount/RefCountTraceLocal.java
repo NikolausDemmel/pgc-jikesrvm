@@ -15,6 +15,7 @@ package org.mmtk.plan.tum.refcount;
 import org.mmtk.plan.Trace;
 import org.mmtk.plan.TraceLocal;
 import org.mmtk.policy.Space;
+import org.mmtk.utility.Log;
 import org.mmtk.utility.deque.ObjectReferenceDeque;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Uninterruptible;
@@ -30,14 +31,13 @@ public final class RefCountTraceLocal extends TraceLocal {
 	/****************************************************************************
 	 * Instance fields
 	 */
-	private final ObjectReferenceDeque modBuffer;
-
 	/**
 	 * Constructor
 	 */
 	public RefCountTraceLocal(Trace trace, ObjectReferenceDeque modBuffer) {
-		super(RefCount.SCAN_MARK, trace);
-		this.modBuffer = modBuffer;
+		super(trace);
+//		super(RefCount.SCAN_MARK, trace);
+//		super(-1,trace);
 	}
 	//
 	//
@@ -59,58 +59,24 @@ public final class RefCountTraceLocal extends TraceLocal {
 		}
 		return super.isLive(object);
 	}
-	//
-	//  /**
-	//   * This method is the core method during the trace of the object graph.
-	//   * The role of this method is to:
-	//   *
-	//   * 1. Ensure the traced object is not collected.
-	//   * 2. If this is the first visit to the object enqueue it to be scanned.
-	//   * 3. Return the forwarded reference to the object.
-	//   *
-	//   * In this instance, we refer objects in the mark-sweep space to the
-	//   * msSpace for tracing, and defer to the superclass for all others.
-	//   *
-	//   * @param object The object to be traced.
-	//   * @return The new reference to the same object instance.
-	//   */
+	  @Inline
+	  public ObjectReference traceObject(ObjectReference object, boolean root) {
+		  Log.write(object);
+		  Log.write(" ");
+		  Log.writeln(root);
+	    return super.traceObject(object,root);
+	  }
 	@Inline
 	@Override
 	public ObjectReference traceObject(ObjectReference object) {
-//		logMessage(1,"RefCountTraceLocal.traceObject("+object+")\n\tisInSpace:\t"+Space.isInSpace(RefCount.RC_DESC, object)+"\n\tisNull:\t"+object.isNull());
-		
-//		logMessage(3,"##################");
+				logMessage(1,"RefCountTraceLocal.traceObject("+object+")\n\tisInSpace:\t"+Space.isInSpace(RefCount.RC_DESC, object)+"\n\tisNull:\t"+object.isNull());
+
+		//		logMessage(3,"##################");
 		if (object.isNull()) return object;
 		if (Space.isInSpace(RefCount.RC_DESC, object)){
-//			RefCount.rcSpace.free(object);
+			//			RefCount.rcSpace.free(object);
 			return RefCount.rcSpace.traceObject(this, object);
 		}
 		return super.traceObject(object);
 	}
-//	@Override
-//	public void processRoots() {
-//		logMessage(3,"processRoots()");
-//		Address ref = rootLocations.pop();
-//		logMessage(3, (RefCount.refTable.containsKey(ref.toString()))?"true":"false");
-//		super.processRoots();
-//	}
-	
-	//
-	//  /**
-	//   * Process any remembered set entries.  This means enumerating the
-	//   * mod buffer and for each entry, marking the object as unlogged
-	//   * (we don't enqueue for scanning since we're doing a full heap GC).
-	//   */
-//	protected void processRememberedSets() {
-//		logMessage(1,"RefCountTraceLocal.processRememberedSets()");
-//		if (modBuffer != null) {
-//			logMessage(5, "clearing modBuffer");
-//			while (!modBuffer.isEmpty()) {
-//				ObjectReference src = modBuffer.pop();
-//				logMessage(1,src);
-//				HeaderByte.markAsUnlogged(src);
-//			}
-//		}
-//	}
-	//
 }

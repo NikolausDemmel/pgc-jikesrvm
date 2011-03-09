@@ -42,15 +42,15 @@ import org.vmmagic.unboxed.ObjectReference;
  */
 @Uninterruptible
 public class RefCountCollector extends StopTheWorldCollector {
-	protected final ObjectReferenceDeque ZCT = new ObjectReferenceDeque("zct", global().zcts);
-	  protected final AddressPairDeque refTable = new AddressPairDeque(global().refs);
-
-
+//	protected final ObjectReferenceDeque ZCT = new ObjectReferenceDeque("zct", global().zcts);
+	
 	//	/****************************************************************************
 	//	 * Instance fields
 	//	 */
-	protected RefCountTraceLocal rctl = new RefCountTraceLocal(global().refCountTrace, null);;
-	protected TraceLocal currentTrace = rctl;
+	protected static RefCountTraceLocal rctl = new RefCountTraceLocal(global().refCountTrace, null);
+	public static ObjectReferenceDeque ZCT = new ObjectReferenceDeque("zct", RefCount.zcts);
+	private static CountZeroTable ZCT_wrapper;
+//	protected TraceLocal currentTrace = rctl;
 	//
 	//
 	//	/****************************************************************************
@@ -77,7 +77,7 @@ public class RefCountCollector extends StopTheWorldCollector {
 //				RefCount.rcSpace.release();
 //			Log.writeln("PREPARE");
 			super.collectionPhase(phaseId, primary);
-			rctl.prepare();
+//			rctl.prepare();
 			return;
 		}
 		if(phaseId == RefCount.STACK_ROOTS){
@@ -92,8 +92,23 @@ public class RefCountCollector extends StopTheWorldCollector {
 		if (phaseId == RefCount.RELEASE) {
 
 //			Log.writeln("RELEASE\t"+RefCount.freeMemory());
-			rctl.release();
+//			rctl.release();
 			super.collectionPhase(phaseId, primary);
+			return;
+		}
+		if (phaseId == RefCount.PREPARE_ZCT){
+			Log.writeln("COLLECTOR_PREPARE_ZCT");
+			ZCT.flushLocal();
+			return;
+		}
+		if (phaseId == RefCount.PROCESS_ZCT){
+			Log.writeln("COLLECTOR_PROCESS_ZCT");
+			//TODO process roots
+			Log.writeln("computeThreadRoots");
+			VM.scanning.computeThreadRoots(rctl);
+			Log.writeln("computeStaticRoots");
+			VM.scanning.computeStaticRoots(rctl);
+			ZCT_wrapper = new CountZeroTable(ZCT,global().getZcts_size());
 			return;
 		}
 		Log.writeln(RefCount.freeMemory().toInt()/(1024f*1024f));
@@ -105,15 +120,11 @@ public class RefCountCollector extends StopTheWorldCollector {
 	//	/****************************************************************************
 	//	 * Miscellaneous
 	//	 */
-	public RefCountCollector(){
-		//	rootTrace = new RCFindRootSetTraceLocal(global().rootTrace, newRootBuffer);
-		//enwRootBuffer = new ObjectReferenceDeque("new-root",global().newRootPool());
-	}
-
+	
 	@Override
 	public void collect() {
 		Phase.beginNewPhaseStack(Phase.scheduleComplex(global().collection));
-		//		super.collect();
+				super.collect();
 	}
 	//
 	//
@@ -123,9 +134,4 @@ public class RefCountCollector extends StopTheWorldCollector {
 		return (RefCount) VM.activePlan.global();
 	}
 
-	/** @return The current trace instance. */
-	@Override
-	public final TraceLocal getCurrentTrace() {
-		return currentTrace;
-	}
 }

@@ -29,6 +29,7 @@ import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Uninterruptible;
 import org.vmmagic.unboxed.Address;
+import org.vmmagic.unboxed.AddressArray;
 import org.vmmagic.unboxed.ObjectReference;
 import org.vmmagic.unboxed.Word;
 
@@ -51,6 +52,7 @@ import org.vmmagic.unboxed.Word;
 public class RefCountMutator extends StopTheWorldMutator {
 
 	public static ObjectReferenceDeque ZCT = new ObjectReferenceDeque("zct", RefCount.zcts);
+	public static AddressArray addrarr;
 	/****************************************************************************
 	 * Instance fields
 	 */
@@ -73,7 +75,7 @@ public class RefCountMutator extends StopTheWorldMutator {
 	 *            Offset associated with the alignment.
 	 * @param allocator
 	 *            The allocator associated with this request.
-	 * @return The low address of the allocated memory.
+	 * @return The low address of the allocated memory.p
 	 */
 	@Override
 	public Address alloc(int bytes, int align, int offset, int allocator,
@@ -137,6 +139,7 @@ public class RefCountMutator extends StopTheWorldMutator {
 
 
 	public synchronized void out(boolean exit) {
+		addrarr = AddressArray.create(500);
 		if(hcnt%1000==0){
 
 			//			Log.writeln("refs:");
@@ -276,10 +279,10 @@ public class RefCountMutator extends StopTheWorldMutator {
 			Log.writeln(obj);
 //			VM.scanning.scanObject(clt, obj);
 			//CamlLight.camlSpace.free(obj);
-			VM.scanning.scanObject(RefCountTraceLocal, obj);
-			RefCount.rcSpace.free(obj);
-			RefCount.rcSpace.prepare();	
-			RefCount.rcSpace.release();	
+//			VM.scanning.scanObject(RefCountTraceLocal, obj);
+//			RefCount.rcSpace.free(obj);
+//			RefCount.rcSpace.prepare();	
+//			RefCount.rcSpace.release();	
 		}
 	}
 	@Inline
@@ -365,7 +368,12 @@ public class RefCountMutator extends StopTheWorldMutator {
 			super.collectionPhase(phaseId, primary);
 			return;
 		}
-
+		if (phaseId == RefCount.PREPARE_ZCT) {
+			Log.writeln("MUTATOR_PREPARE_ZCT");
+			ZCT.flushLocal();
+			return;
+		}
+		
 		super.collectionPhase(phaseId, primary);
 	}
 

@@ -18,9 +18,11 @@ import org.mmtk.plan.Trace;
 import org.mmtk.plan.TransitiveClosure;
 import org.mmtk.policy.ExplicitFreeListSpace;
 import org.mmtk.policy.Space;
+import org.mmtk.utility.Log;
 import org.mmtk.utility.deque.ObjectReferenceDeque;
 import org.mmtk.utility.deque.SharedDeque;
 import org.mmtk.utility.heap.VMRequest;
+import org.mmtk.utility.options.Options;
 import org.mmtk.vm.VM;
 import org.vmmagic.pragma.Inline;
 import org.vmmagic.pragma.Interruptible;
@@ -30,30 +32,35 @@ import org.vmmagic.unboxed.ObjectReference;
 
 @Uninterruptible
 public class RefCount extends StopTheWorld {
-
+//
 	  public final static SharedDeque zcts = new SharedDeque("zcts",metaDataSpace, 1);
-	  public final static SharedDeque refs = new SharedDeque("refs",metaDataSpace, 1);
 	/****************************************************************************
 	 * Class variables
 	 */
 	public static final ExplicitFreeListSpace rcSpace = new ExplicitFreeListSpace("rc", VMRequest.create());
-
-	//public static HashSet<ObjectReference> ZCT = new HashSet<ObjectReference>();
-//	public static UITable ZCT = new UITable();
-	
-//	public static Hashtable<Integer,ObjectReference> refTable = new Hashtable<Integer,ObjectReference>();
-//	public static UITable refTable = new UITable(100,true);
+	private static int zcts_size=0;
 
 	public static final int RC_DESC = rcSpace.getDescriptor();
 	public static final int SCAN_MARK = 0;
 
+	public final static Trace refCountTrace = new Trace(metaDataSpace);
 
-	public final Trace refCountTrace = new Trace(metaDataSpace);
+	public static final short PREPARE_ZCT = Phase.createSimple("prepareZCT");
+	public static final short PROCESS_ZCT = Phase.createSimple("processZCT");
+	public static final short TRACE_ROOT_SET = Phase.createSimple("traceRootSet");
+
+	protected static final short process_zct = Phase.createComplex("prepare-zct",
+		      Phase.scheduleMutator     (PREPARE_ZCT),
+		      Phase.scheduleCollector   (PREPARE_ZCT),
+		      Phase.scheduleGlobal     (PREPARE_ZCT),
+		      Phase.scheduleCollector  (PROCESS_ZCT));
 
 	public  short collection = Phase.createComplex("collection", null,
 			Phase.scheduleComplex(initPhase),
-			Phase.scheduleComplex(rootClosurePhase),
-			Phase.scheduleComplex(completeClosurePhase),
+			Phase.scheduleComplex(process_zct),
+//			PROCESS_ZCT,
+//			Phase.scheduleComplex(rootClosurePhase),
+//			Phase.scheduleComplex(completeClosurePhase),
 			Phase.scheduleComplex(finishPhase)
 	);
 
@@ -61,7 +68,7 @@ public class RefCount extends StopTheWorld {
 	/****************************************************************************
 	 * Instance variables
 	 */
-	public final Trace rcTrace = new Trace(metaDataSpace);
+//	public final Trace rcTrace = new Trace(metaDataSpace);
 
 
 	/*****************************************************************************
@@ -70,8 +77,11 @@ public class RefCount extends StopTheWorld {
 	public static final boolean isRefCountObject(ObjectReference object) {
 		return !object.isNull();// && !Space.isInSpace(RC_DESC, object);
 	}
-
-	public Trace rootTrace;
+public RefCount(){
+	Options.noFinalizer.setDefaultValue(true);
+	Options.noReferenceTypes.setDefaultValue(true);
+}
+//	public Trace rootTrace;
 	/**
 	 * Perform a (global) collection phase.
 	 *
@@ -89,21 +99,26 @@ public class RefCount extends StopTheWorld {
 			VM.weakReferences.clear();
 			VM.softReferences.clear();
 			VM.phantomReferences.clear();
-			rcTrace.prepare();
+//			rcTrace.prepare();
 			rcSpace.prepare();
 			return;
 		}
 		
 		if (phaseId == CLOSURE) {
 //			Log.writeln("CLOSURE");
-			rcTrace.prepare();
+//			rcTrace.prepare();
 			return;
 		}
 		if (phaseId == RELEASE) {
 //			Log.writeln("RELEASE");
-			rcTrace.release();
+//			rcTrace.release();
 			rcSpace.release();
 			super.collectionPhase(phaseId);
+			return;
+		}
+		if (phaseId == PREPARE_ZCT) {
+			Log.writeln("GLOBAL_PREPARE_ZCT");
+			zcts_size = zcts.enqueuedPages();
 			return;
 		}
 
@@ -113,6 +128,10 @@ public class RefCount extends StopTheWorld {
 	/*****************************************************************************
 	 * Accounting
 	 */
+
+	public static int getZcts_size() {
+		return zcts_size;
+	}
 
 	/**
 	 * Return the number of pages reserved for use given the pending
@@ -143,14 +162,11 @@ public class RefCount extends StopTheWorld {
 			return true;
 		return super.willNeverMove(object);
 	}
-
-	/**
-	 * Register specialized methods.
-	 */
 	@Interruptible
 	@Override
 	protected void registerSpecializedMethods() {
-		TransitiveClosure.registerSpecializedScan(SCAN_MARK, RefCountTraceLocal.class);
+		// TODO Auto-generated method stub
 		super.registerSpecializedMethods();
 	}
+
 }
