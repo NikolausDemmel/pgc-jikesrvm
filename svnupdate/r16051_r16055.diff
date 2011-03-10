@@ -1,0 +1,648 @@
+Index: libraryInterface/Common/src/java/lang/ref/PhantomReference.java
+===================================================================
+--- libraryInterface/Common/src/java/lang/ref/PhantomReference.java	(Revision 16051)
++++ libraryInterface/Common/src/java/lang/ref/PhantomReference.java	(Revision 16055)
+@@ -13,10 +13,12 @@
+ package java.lang.ref;
+ 
+ import org.jikesrvm.mm.mminterface.MemoryManager;
++import org.vmmagic.pragma.ReferenceFieldsVary;
+ 
+ /**
+  * Implementation of java.lang.ref.PhantomReference for JikesRVM.
+  */
++@ReferenceFieldsVary
+ public class PhantomReference<T> extends Reference<T> {
+ 
+   public PhantomReference(T referent, ReferenceQueue<T> q) {
+Index: libraryInterface/Common/src/java/lang/ref/WeakReference.java
+===================================================================
+--- libraryInterface/Common/src/java/lang/ref/WeakReference.java	(Revision 16051)
++++ libraryInterface/Common/src/java/lang/ref/WeakReference.java	(Revision 16055)
+@@ -13,12 +13,14 @@
+ package java.lang.ref;
+ 
+ import org.jikesrvm.mm.mminterface.MemoryManager;
++import org.vmmagic.pragma.ReferenceFieldsVary;
+ 
+ /**
+  * Implementation of java.lang.ref.WeakReference for JikesRVM.
+  *
+  * @see java.util.WeakHashMap
+  */
++@ReferenceFieldsVary
+ public class WeakReference<T> extends Reference<T> {
+ 
+   public WeakReference(T referent) {
+Index: libraryInterface/Common/src/java/lang/ref/SoftReference.java
+===================================================================
+--- libraryInterface/Common/src/java/lang/ref/SoftReference.java	(Revision 16051)
++++ libraryInterface/Common/src/java/lang/ref/SoftReference.java	(Revision 16055)
+@@ -13,10 +13,12 @@
+ package java.lang.ref;
+ 
+ import org.jikesrvm.mm.mminterface.MemoryManager;
++import org.vmmagic.pragma.ReferenceFieldsVary;
+ 
+ /**
+  * Implementation of java.lang.ref.SoftReference for JikesRVM.
+  */
++@ReferenceFieldsVary
+ public class SoftReference<T> extends Reference<T> {
+ 
+   public SoftReference(T referent) {
+Index: libraryInterface/Common/src/java/lang/ref/Reference.java
+===================================================================
+--- libraryInterface/Common/src/java/lang/ref/Reference.java	(Revision 16051)
++++ libraryInterface/Common/src/java/lang/ref/Reference.java	(Revision 16055)
+@@ -16,11 +16,13 @@
+ import org.jikesrvm.runtime.Magic;
+ import org.vmmagic.pragma.Inline;
+ import org.vmmagic.pragma.Uninterruptible;
++import org.vmmagic.pragma.ReferenceFieldsVary;
+ import org.vmmagic.unboxed.Address;
+ 
+ /**
+  * The JikesRVM implementation of the java.lang.ref.Reference class.
+  */
++@ReferenceFieldsVary
+ public abstract class Reference<T> {
+ 
+   /**
+Index: common/vmmagic/src/org/vmmagic/pragma/ReferenceFieldsVary.java
+===================================================================
+--- common/vmmagic/src/org/vmmagic/pragma/ReferenceFieldsVary.java	(Revision 0)
++++ common/vmmagic/src/org/vmmagic/pragma/ReferenceFieldsVary.java	(Revision 16055)
+@@ -0,0 +1,33 @@
++/*
++ *  This file is part of the Jikes RVM project (http://jikesrvm.org).
++ *
++ *  This file is licensed to You under the Eclipse Public License (EPL);
++ *  You may not use this file except in compliance with the License. You
++ *  may obtain a copy of the License at
++ *
++ *      http://www.opensource.org/licenses/eclipse-1.0.php
++ *
++ *  See the COPYRIGHT.txt file distributed with this work for information
++ *  regarding copyright ownership.
++ */
++package org.vmmagic.pragma;
++
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.ElementType;
++
++/**
++ * This annotation marks types which have fields that can be marked
++ * as either traced or untraced by the VM.  It disables GC optimizations
++ * that rely on the object pattern remaining static from build time
++ * to execution time.
++ *
++ * The property conferred by this annotation applies to all its subtypes as
++ * well.
++ */
++@Retention(RetentionPolicy.RUNTIME)
++@Target({ElementType.TYPE})
++@Inherited
++public @interface ReferenceFieldsVary { }
+Index: build/test-runs/sanity.properties
+===================================================================
+--- build/test-runs/sanity.properties	(Revision 16051)
++++ build/test-runs/sanity.properties	(Revision 16055)
+@@ -130,3 +130,4 @@
+ test.config.jsr166-tck.TreeSetTest.exclude=true
+ test.config.jsr166-tck.TreeSubMapTest.exclude=true
+ test.config.jsr166-tck.TreeSubSetTest.exclude=true
++test.config.jsr166-tck.SynchronousQueueTest.exclude=true
+Index: rvm/src/org/jikesrvm/objectmodel/JavaHeader.java
+===================================================================
+--- rvm/src/org/jikesrvm/objectmodel/JavaHeader.java	(Revision 16051)
++++ rvm/src/org/jikesrvm/objectmodel/JavaHeader.java	(Revision 16055)
+@@ -290,22 +290,9 @@
+    * nursery so we can't assert DYNAMIC_HASH_OFFSET.
+    */
+   public static ObjectReference getObjectFromStartAddress(Address start) {
+-    if ((start.loadWord().toInt() & ALIGNMENT_MASK) == ALIGNMENT_MASK) {
++    while ((start.loadWord().toInt() & ALIGNMENT_MASK) == ALIGNMENT_MASK) {
+       start = start.plus(SizeConstants.BYTES_IN_WORD);
+-      if ((start.loadWord().toInt() & ALIGNMENT_MASK) == ALIGNMENT_MASK) {
+-        start = start.plus(SizeConstants.BYTES_IN_WORD);
+-        if ((start.loadWord().toInt() & ALIGNMENT_MASK) == ALIGNMENT_MASK) {
+-          start = start.plus(SizeConstants.BYTES_IN_WORD);
+-          if ((start.loadWord().toInt() & ALIGNMENT_MASK) == ALIGNMENT_MASK) {
+-            start = start.plus(SizeConstants.BYTES_IN_WORD);
+-            if ((start.loadWord().toInt() & ALIGNMENT_MASK) == ALIGNMENT_MASK) {
+-              return ObjectReference.nullReference();
+-            }
+-          }
+-        }
+-      }
+     }
+-
+     return start.plus(OBJECT_REF_OFFSET).toObjectReference();
+   }
+ 
+Index: rvm/src/org/jikesrvm/classloader/RVMArray.java
+===================================================================
+--- rvm/src/org/jikesrvm/classloader/RVMArray.java	(Revision 16051)
++++ rvm/src/org/jikesrvm/classloader/RVMArray.java	(Revision 16055)
+@@ -17,7 +17,7 @@
+ import org.jikesrvm.ArchitectureSpecific;
+ import org.jikesrvm.VM;
+ import org.jikesrvm.Constants;
+-import org.jikesrvm.mm.mminterface.HandInlignedScanning;
++import org.jikesrvm.mm.mminterface.HandInlinedScanning;
+ import org.jikesrvm.mm.mminterface.Barriers;
+ import org.jikesrvm.mm.mminterface.MemoryManager;
+ import org.jikesrvm.objectmodel.ObjectModel;
+@@ -489,9 +489,8 @@
+     //
+     TIB javaLangObjectTIB = RVMType.JavaLangObjectType.getTypeInformationBlock();
+ 
+-    boolean isRefArray = elementType.isReferenceType();
+-    TIB allocatedTib = MemoryManager.newTIB(javaLangObjectTIB.numVirtualMethods(),
+-        isRefArray? HandInlignedScanning.refArray() : HandInlignedScanning.primArray());
++    int alignCode = elementType.isReferenceType() ? HandInlinedScanning.referenceArray() : HandInlinedScanning.primitiveArray();
++    TIB allocatedTib = MemoryManager.newTIB(javaLangObjectTIB.numVirtualMethods(), alignCode);
+     superclassIds = DynamicTypeCheck.buildSuperclassIds(this);
+     doesImplement = DynamicTypeCheck.buildDoesImplement(this);
+     publishResolved(allocatedTib, superclassIds, doesImplement);
+Index: rvm/src/org/jikesrvm/classloader/RVMClass.java
+===================================================================
+--- rvm/src/org/jikesrvm/classloader/RVMClass.java	(Revision 16051)
++++ rvm/src/org/jikesrvm/classloader/RVMClass.java	(Revision 16055)
+@@ -20,7 +20,7 @@
+ import org.jikesrvm.VM;
+ import org.jikesrvm.compilers.common.CompiledMethod;
+ import org.jikesrvm.compilers.opt.inlining.ClassLoadingDependencyManager;
+-import org.jikesrvm.mm.mminterface.HandInlignedScanning;
++import org.jikesrvm.mm.mminterface.HandInlinedScanning;
+ import org.jikesrvm.mm.mminterface.AlignmentEncoding;
+ import org.jikesrvm.mm.mminterface.MemoryManager;
+ import org.jikesrvm.objectmodel.FieldLayoutContext;
+@@ -1291,9 +1291,11 @@
+     // allocate "type information block"
+     TIB allocatedTib;
+     if (isInterface()) {
+-      allocatedTib = MemoryManager.newTIB(0,AlignmentEncoding.ALIGN_CODE_NONE);
++      allocatedTib = MemoryManager.newTIB(0, AlignmentEncoding.ALIGN_CODE_NONE);
++    } else if (isAnnotationDeclared(TypeReference.ReferenceFieldsVary)) {
++      allocatedTib = MemoryManager.newTIB(virtualMethods.length, HandInlinedScanning.fallback());
+     } else {
+-      allocatedTib = MemoryManager.newTIB(virtualMethods.length, HandInlignedScanning.scalar(referenceOffsets));
++      allocatedTib = MemoryManager.newTIB(virtualMethods.length, HandInlinedScanning.scalar(referenceOffsets));
+     }
+ 
+     superclassIds = DynamicTypeCheck.buildSuperclassIds(this);
+@@ -1474,7 +1476,7 @@
+    * Make the passed field a traced field by garbage collection. Also affects all
+    * subclasses.
+    */
+-  public synchronized void makeFieldTraced(RVMField field) {
++  public void makeFieldTraced(RVMField field) {
+     int[] oldOffsets = referenceOffsets;
+     int fieldOffset = field.getOffset().toInt();
+     referenceOffsets = MemoryManager.newNonMovingIntArray(oldOffsets.length + 1);
+@@ -1482,7 +1484,6 @@
+     for(i=0; i < oldOffsets.length && oldOffsets[i] < fieldOffset; i++) {
+       referenceOffsets[i] = oldOffsets[i];
+     }
+-    if (VM.VerifyAssertions) VM._assert(oldOffsets[i] != fieldOffset, "Field is already traced!");
+     referenceOffsets[i++] = fieldOffset;
+     while(i < referenceOffsets.length) {
+       referenceOffsets[i] = oldOffsets[i-1];
+Index: rvm/src/org/jikesrvm/classloader/TypeReference.java
+===================================================================
+--- rvm/src/org/jikesrvm/classloader/TypeReference.java	(Revision 16051)
++++ rvm/src/org/jikesrvm/classloader/TypeReference.java	(Revision 16055)
+@@ -173,6 +173,7 @@
+   public static final TypeReference NonMovingAllocation = findOrCreate(org.vmmagic.pragma.NonMovingAllocation.class);
+   public static final TypeReference BaselineNoRegisters = findOrCreate(org.vmmagic.pragma.BaselineNoRegisters.class);
+   public static final TypeReference BaselineSaveLSRegisters = findOrCreate(org.vmmagic.pragma.BaselineSaveLSRegisters.class);
++  public static final TypeReference ReferenceFieldsVary = findOrCreate(org.vmmagic.pragma.ReferenceFieldsVary.class);
+ 
+ 
+   public static final TypeReference ReferenceMaps =
+Index: rvm/src/org/jikesrvm/mm/mminterface/HandInlignedScanning.java
+===================================================================
+--- rvm/src/org/jikesrvm/mm/mminterface/HandInlignedScanning.java	(Revision 16051)
++++ rvm/src/org/jikesrvm/mm/mminterface/HandInlignedScanning.java	(Revision 16055)
+@@ -1,154 +0,0 @@
+-/*
+- *  This file is part of the Jikes RVM project (http://jikesrvm.org).
+- *
+- *  This file is licensed to You under the Eclipse Public License (EPL);
+- *  You may not use this file except in compliance with the License. You
+- *  may obtain a copy of the License at
+- *
+- *      http://www.opensource.org/licenses/eclipse-1.0.php
+- *
+- *  See the COPYRIGHT.txt file distributed with this work for information
+- *  regarding copyright ownership.
+- */
+-package org.jikesrvm.mm.mminterface;
+-
+-import org.jikesrvm.Constants;
+-import org.jikesrvm.classloader.RVMType;
+-import org.jikesrvm.objectmodel.JavaHeader;
+-import org.jikesrvm.objectmodel.ObjectModel;
+-import org.mmtk.plan.TransitiveClosure;
+-import org.vmmagic.pragma.Inline;
+-import org.vmmagic.pragma.Uninterruptible;
+-
+-/**
+- * Supply and interpretation of values to be alignment-encoded into
+- * the TIB pointer of an object.
+- */
+-public class HandInlignedScanning {
+-
+-  public static final int AE_FALLBACK = (1<<AlignmentEncoding.FIELD_WIDTH)-1;
+-  public static final int AE_REFARRAY = AE_FALLBACK - 1;
+-
+-  public static final int AE_PATTERN_0x0  = 0;
+-  public static final int AE_PATTERN_0x1  = 1;
+-  public static final int AE_PATTERN_0x7  = 2;
+-  public static final int AE_PATTERN_0x3F = 3;
+-  public static final int AE_PATTERN_0x3  = 4;
+-  public static final int AE_PATTERN_0x3D = 5;
+-
+-  private static final int FIELD0_OFFSET =
+-    JavaHeader.objectStartOffset(RVMType.JavaLangObjectType) +
+-  ObjectModel.computeScalarHeaderSize(RVMType.JavaLangObjectType);
+-
+-  private static final int FIELD1_OFFSET = FIELD0_OFFSET + Constants.BYTES_IN_ADDRESS;
+-  private static final int FIELD2_OFFSET = FIELD1_OFFSET + Constants.BYTES_IN_ADDRESS;
+-  private static final int FIELD3_OFFSET = FIELD2_OFFSET + Constants.BYTES_IN_ADDRESS;
+-  private static final int FIELD4_OFFSET = FIELD3_OFFSET + Constants.BYTES_IN_ADDRESS;
+-  private static final int FIELD5_OFFSET = FIELD4_OFFSET + Constants.BYTES_IN_ADDRESS;
+-
+-  /** Master switch */
+-  public static final boolean ENABLED = true;
+-
+-  public static int refArray() {
+-    if (!ENABLED)
+-      return AlignmentEncoding.ALIGN_CODE_NONE;
+-    return AE_REFARRAY;
+-  }
+-
+-  public static int primArray() {
+-    if (!ENABLED)
+-      return AlignmentEncoding.ALIGN_CODE_NONE;
+-    return AE_PATTERN_0x0;
+-  }
+-
+-  public static int scalar(int[] offsets) {
+-    if (!ENABLED)
+-      return AlignmentEncoding.ALIGN_CODE_NONE;
+-    if (offsets.length == 0) {
+-      return AE_PATTERN_0x0;
+-    }
+-    if (offsets.length == 1) {
+-      if (offsets[0] == FIELD0_OFFSET)
+-        return AE_PATTERN_0x1;
+-    }
+-//    if (offsets.length == 2) {
+-//      if (offsets[0] == FIELD0_OFFSET &&
+-//          offsets[1] == FIELD1_OFFSET)
+-//        return AE_PATTERN_0x3;
+-//    }
+-    if (offsets.length == 3) {
+-      if (offsets[0] == FIELD0_OFFSET &&
+-          offsets[1] == FIELD1_OFFSET &&
+-          offsets[2] == FIELD2_OFFSET)
+-        return AE_PATTERN_0x7;
+-    }
+-//    if (offsets.length == 5) {
+-//      if (offsets[0] == FIELD0_OFFSET &&
+-//          offsets[1] == FIELD2_OFFSET &&
+-//          offsets[2] == FIELD3_OFFSET &&
+-//          offsets[3] == FIELD4_OFFSET &&
+-//          offsets[4] == FIELD5_OFFSET)
+-//        return AE_PATTERN_0x3D;
+-//    }
+-    if (offsets.length == 6) {
+-      if (offsets[0] == FIELD0_OFFSET &&
+-          offsets[1] == FIELD1_OFFSET &&
+-          offsets[2] == FIELD2_OFFSET &&
+-          offsets[3] == FIELD3_OFFSET &&
+-          offsets[4] == FIELD4_OFFSET &&
+-          offsets[5] == FIELD5_OFFSET)
+-        return AE_PATTERN_0x3F;
+-    }
+-    return AE_FALLBACK;
+-  }
+-
+-  /**
+-   * Hand-inlined scanning of objects.  The cases of the conditional
+-   * are ordered in descending frequency of patterns.
+-   *
+-   * This entry point falls back to specialized scanning if it is enabled.
+-   */
+-  @Inline
+-  @Uninterruptible
+-  public static void scanObject(int code, int id, Object object, TransitiveClosure trace) {
+-    scanObject(code, id, object, trace, SpecializedScanMethod.ENABLED);
+-  }
+-
+-  /**
+-   * Hand-inlined scanning of objects.  The cases of the conditional
+-   * are ordered in descending frequency of patterns.
+-   *
+-   * This entry point does not fall back to specialized scanning.
+-   */
+-  @Inline
+-  @Uninterruptible
+-  public static void scanObject(int code, Object object, TransitiveClosure trace) {
+-    scanObject(code, 0, object, trace, false);
+-  }
+-
+-  @Inline
+-  @Uninterruptible
+-  private static void scanObject(int code, int id, Object object, TransitiveClosure trace, boolean specialize) {
+-    if (code == AE_PATTERN_0x0) {
+-      ;
+-    } else if (code == AE_PATTERN_0x1) {
+-      SpecializedScanMethod.pattern(0x1,object,trace);
+-    } else if (code == AE_PATTERN_0x7) {
+-      SpecializedScanMethod.pattern(0x7,object,trace);
+-    } else if (code == AE_PATTERN_0x3F) {
+-      SpecializedScanMethod.pattern(0x3F,object,trace);
+-    } else if (code == AE_FALLBACK)  {
+-      if (specialize)  {
+-        SpecializedScanMethod.invoke(id, object,trace);
+-      } else {
+-        SpecializedScanMethod.fallback(object, trace);
+-      }
+-    } else if (code == AE_REFARRAY) {
+-      SpecializedScanMethod.referenceArray(object,trace);
+-    }  else if (code == AE_PATTERN_0x3) {
+-      SpecializedScanMethod.pattern(0x3,object,trace);
+-    } else if (code == AE_PATTERN_0x3D) {
+-      SpecializedScanMethod.pattern(0x3D,object,trace);
+-    }
+-  }
+-}
+Index: rvm/src/org/jikesrvm/mm/mminterface/MemoryManager.java
+===================================================================
+--- rvm/src/org/jikesrvm/mm/mminterface/MemoryManager.java	(Revision 16051)
++++ rvm/src/org/jikesrvm/mm/mminterface/MemoryManager.java	(Revision 16055)
+@@ -247,7 +247,7 @@
+    */
+   @Interruptible
+   public static void gc() {
+-    Selected.Plan.get().handleUserCollectionRequest();
++    Selected.Plan.handleUserCollectionRequest();
+   }
+ 
+   /****************************************************************************
+@@ -836,12 +836,12 @@
+     }
+     int size = elemBytes + headerSize + AlignmentEncoding.padding(alignCode);
+     Selected.Mutator mutator = Selected.Mutator.get();
+-    Address region = allocateSpace(mutator, size, align, offset, Plan.ALLOC_IMMORTAL, Plan.DEFAULT_SITE);
++    Address region = allocateSpace(mutator, size, align, offset, type.getMMAllocator(), Plan.DEFAULT_SITE);
+ 
+     region = AlignmentEncoding.adjustRegion(alignCode, region);
+ 
+     Object result = ObjectModel.initializeArray(region, fakeTib, elements, size);
+-    mutator.postAlloc(ObjectReference.fromObject(result), ObjectReference.fromObject(fakeTib), size, Plan.ALLOC_IMMORTAL);
++    mutator.postAlloc(ObjectReference.fromObject(result), ObjectReference.fromObject(fakeTib), size, type.getMMAllocator());
+ 
+     /* Now we replace the TIB */
+     ObjectModel.setTIB(result, realTib);
+Index: rvm/src/org/jikesrvm/mm/mminterface/AlignmentEncoding.java
+===================================================================
+--- rvm/src/org/jikesrvm/mm/mminterface/AlignmentEncoding.java	(Revision 16051)
++++ rvm/src/org/jikesrvm/mm/mminterface/AlignmentEncoding.java	(Revision 16055)
+@@ -22,6 +22,7 @@
+ import org.vmmagic.pragma.Uninterruptible;
+ import org.vmmagic.unboxed.Address;
+ import org.vmmagic.unboxed.ObjectReference;
++import org.vmmagic.unboxed.Word;
+ 
+ /**
+  * Support for encoding a small amount of metadata in the alignment of
+@@ -32,7 +33,7 @@
+  *     +-------+-------+-------+-------+
+  *     xxxxxxxxxxxxxxxxxxxxxxxxxxxxfff00
+  * </pre>
+- * where the natural alignment of the object is prezerved (the low-order bits
++ * where the natural alignment of the object is preserved (the low-order bits
+  * are zero), and the next least significant <i>n</i> bits contain the
+  * encoded metadata.
+  * <p>
+@@ -105,6 +106,10 @@
+       VM.sysWriteln(", requested = ",alignCode);
+     }
+     while (getTibCodeForRegion(region) != alignCode) {
++      if (VM.runningVM) {
++        // Hack to allow alignment, but no alignment filling during boot
++        region.store(Word.fromIntZeroExtend(ObjectModel.ALIGNMENT_VALUE));
++      }
+       region = region.plus(ALIGNMENT_INCREMENT);
+       if (region.GT(limit)) {
+         VM.sysFail("Tib alignment fail");
+Index: rvm/src/org/jikesrvm/mm/mminterface/HandInlinedScanning.java
+===================================================================
+--- rvm/src/org/jikesrvm/mm/mminterface/HandInlinedScanning.java	(Revision 0)
++++ rvm/src/org/jikesrvm/mm/mminterface/HandInlinedScanning.java	(Revision 16055)
+@@ -0,0 +1,160 @@
++/*
++ *  This file is part of the Jikes RVM project (http://jikesrvm.org).
++ *
++ *  This file is licensed to You under the Eclipse Public License (EPL);
++ *  You may not use this file except in compliance with the License. You
++ *  may obtain a copy of the License at
++ *
++ *      http://www.opensource.org/licenses/eclipse-1.0.php
++ *
++ *  See the COPYRIGHT.txt file distributed with this work for information
++ *  regarding copyright ownership.
++ */
++package org.jikesrvm.mm.mminterface;
++
++import org.jikesrvm.Constants;
++import org.jikesrvm.classloader.RVMType;
++import org.jikesrvm.objectmodel.JavaHeader;
++import org.jikesrvm.objectmodel.ObjectModel;
++import org.mmtk.plan.TransitiveClosure;
++import org.vmmagic.pragma.Inline;
++import org.vmmagic.pragma.Uninterruptible;
++
++/**
++ * Supply and interpretation of values to be alignment-encoded into
++ * the TIB pointer of an object.
++ */
++public class HandInlinedScanning {
++
++  public static final int AE_FALLBACK = (1<<AlignmentEncoding.FIELD_WIDTH)-1;
++  public static final int AE_REFARRAY = AE_FALLBACK - 1;
++
++  public static final int AE_PATTERN_0x0  = 0;
++  public static final int AE_PATTERN_0x1  = 1;
++  public static final int AE_PATTERN_0x7  = 2;
++  public static final int AE_PATTERN_0x3F = 3;
++  public static final int AE_PATTERN_0x3  = 4;
++  public static final int AE_PATTERN_0x3D = 5;
++
++  private static final int FIELD0_OFFSET =
++    JavaHeader.objectStartOffset(RVMType.JavaLangObjectType) +
++    ObjectModel.computeScalarHeaderSize(RVMType.JavaLangObjectType);
++
++  private static final int FIELD1_OFFSET = FIELD0_OFFSET + Constants.BYTES_IN_ADDRESS;
++  private static final int FIELD2_OFFSET = FIELD1_OFFSET + Constants.BYTES_IN_ADDRESS;
++  private static final int FIELD3_OFFSET = FIELD2_OFFSET + Constants.BYTES_IN_ADDRESS;
++  private static final int FIELD4_OFFSET = FIELD3_OFFSET + Constants.BYTES_IN_ADDRESS;
++  private static final int FIELD5_OFFSET = FIELD4_OFFSET + Constants.BYTES_IN_ADDRESS;
++
++  /** Master switch */
++  public static final boolean ENABLED = true;
++
++  public static int referenceArray() {
++    if (!ENABLED)
++      return AlignmentEncoding.ALIGN_CODE_NONE;
++    return AE_REFARRAY;
++  }
++
++  public static int primitiveArray() {
++    if (!ENABLED)
++      return AlignmentEncoding.ALIGN_CODE_NONE;
++    return AE_PATTERN_0x0;
++  }
++
++  public static int fallback() {
++    if (!ENABLED)
++      return AlignmentEncoding.ALIGN_CODE_NONE;
++    return AE_FALLBACK;
++  }
++
++  public static int scalar(int[] offsets) {
++    if (!ENABLED)
++      return AlignmentEncoding.ALIGN_CODE_NONE;
++    if (offsets.length == 0) {
++      return AE_PATTERN_0x0;
++    }
++    if (offsets.length == 1) {
++      if (offsets[0] == FIELD0_OFFSET)
++        return AE_PATTERN_0x1;
++    }
++//    if (offsets.length == 2) {
++//      if (offsets[0] == FIELD0_OFFSET &&
++//          offsets[1] == FIELD1_OFFSET)
++//        return AE_PATTERN_0x3;
++//    }
++    if (offsets.length == 3) {
++      if (offsets[0] == FIELD0_OFFSET &&
++          offsets[1] == FIELD1_OFFSET &&
++          offsets[2] == FIELD2_OFFSET)
++        return AE_PATTERN_0x7;
++    }
++//    if (offsets.length == 5) {
++//      if (offsets[0] == FIELD0_OFFSET &&
++//          offsets[1] == FIELD2_OFFSET &&
++//          offsets[2] == FIELD3_OFFSET &&
++//          offsets[3] == FIELD4_OFFSET &&
++//          offsets[4] == FIELD5_OFFSET)
++//        return AE_PATTERN_0x3D;
++//    }
++    if (offsets.length == 6) {
++      if (offsets[0] == FIELD0_OFFSET &&
++          offsets[1] == FIELD1_OFFSET &&
++          offsets[2] == FIELD2_OFFSET &&
++          offsets[3] == FIELD3_OFFSET &&
++          offsets[4] == FIELD4_OFFSET &&
++          offsets[5] == FIELD5_OFFSET)
++        return AE_PATTERN_0x3F;
++    }
++    return AE_FALLBACK;
++  }
++
++  /**
++   * Hand-inlined scanning of objects.  The cases of the conditional
++   * are ordered in descending frequency of patterns.
++   *
++   * This entry point falls back to specialized scanning if it is enabled.
++   */
++  @Inline
++  @Uninterruptible
++  public static void scanObject(int code, int id, Object object, TransitiveClosure trace) {
++    scanObject(code, id, object, trace, SpecializedScanMethod.ENABLED);
++  }
++
++  /**
++   * Hand-inlined scanning of objects.  The cases of the conditional
++   * are ordered in descending frequency of patterns.
++   *
++   * This entry point does not fall back to specialized scanning.
++   */
++  @Inline
++  @Uninterruptible
++  public static void scanObject(int code, Object object, TransitiveClosure trace) {
++    scanObject(code, 0, object, trace, false);
++  }
++
++  @Inline
++  @Uninterruptible
++  private static void scanObject(int code, int id, Object object, TransitiveClosure trace, boolean specialize) {
++    if (code == AE_PATTERN_0x0) {
++      ;
++    } else if (code == AE_PATTERN_0x1) {
++      SpecializedScanMethod.pattern(0x1,object,trace);
++    } else if (code == AE_PATTERN_0x7) {
++      SpecializedScanMethod.pattern(0x7,object,trace);
++    } else if (code == AE_PATTERN_0x3F) {
++      SpecializedScanMethod.pattern(0x3F,object,trace);
++    } else if (code == AE_FALLBACK)  {
++      if (specialize)  {
++        SpecializedScanMethod.invoke(id, object,trace);
++      } else {
++        SpecializedScanMethod.fallback(object, trace);
++      }
++    } else if (code == AE_REFARRAY) {
++      SpecializedScanMethod.referenceArray(object,trace);
++    }  else if (code == AE_PATTERN_0x3) {
++      SpecializedScanMethod.pattern(0x3,object,trace);
++    } else if (code == AE_PATTERN_0x3D) {
++      SpecializedScanMethod.pattern(0x3D,object,trace);
++    }
++  }
++}
+Index: MMTk/ext/vm/jikesrvm/org/jikesrvm/mm/mmtk/Scanning.java
+===================================================================
+--- MMTk/ext/vm/jikesrvm/org/jikesrvm/mm/mmtk/Scanning.java	(Revision 16051)
++++ MMTk/ext/vm/jikesrvm/org/jikesrvm/mm/mmtk/Scanning.java	(Revision 16055)
+@@ -21,7 +21,7 @@
+ import org.jikesrvm.jni.JNIEnvironment;
+ import org.jikesrvm.jni.JNIGlobalRefTable;
+ import org.jikesrvm.mm.mminterface.AlignmentEncoding;
+-import org.jikesrvm.mm.mminterface.HandInlignedScanning;
++import org.jikesrvm.mm.mminterface.HandInlinedScanning;
+ import org.jikesrvm.mm.mminterface.Selected;
+ import org.jikesrvm.mm.mminterface.MemoryManagerConstants;
+ import org.jikesrvm.mm.mminterface.SpecializedScanMethod;
+@@ -48,9 +48,9 @@
+    */
+   @Inline
+   public void scanObject(TransitiveClosure trace, ObjectReference object) {
+-    if (HandInlignedScanning.ENABLED) {
++    if (HandInlinedScanning.ENABLED) {
+       int tibCode = AlignmentEncoding.getTibCode(object);
+-      HandInlignedScanning.scanObject(tibCode, object.toObject(), trace);
++      HandInlinedScanning.scanObject(tibCode, object.toObject(), trace);
+     } else {
+       SpecializedScanMethod.fallback(object.toObject(), trace);
+     }
+@@ -66,9 +66,9 @@
+    */
+   @Inline
+   public void specializedScanObject(int id, TransitiveClosure trace, ObjectReference object) {
+-    if (HandInlignedScanning.ENABLED) {
++    if (HandInlinedScanning.ENABLED) {
+       int tibCode = AlignmentEncoding.getTibCode(object);
+-      HandInlignedScanning.scanObject(tibCode, id, object.toObject(), trace);
++      HandInlinedScanning.scanObject(tibCode, id, object.toObject(), trace);
+     } else {
+       if (SpecializedScanMethod.ENABLED) {
+         SpecializedScanMethod.invoke(id, object.toObject(), trace);
