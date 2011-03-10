@@ -255,7 +255,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
    * @param mode The context in which the store occured
    * @return True if the swap was successful.
    */
-  @Inline
+  /*@Inline
   public boolean objectReferenceTryCompareAndSwap(ObjectReference src, Address slot,
                                                ObjectReference old, ObjectReference tgt, Word metaDataA,
                                                Word metaDataB, int mode) {
@@ -266,7 +266,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
     addRef(tgt);
     //}
     return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
-  }
+  }*/
 
   /**
    * A number of references are about to be copied from object
@@ -286,7 +286,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
    * @return True if the update was performed by the barrier, false if
    * left to the caller (always false in this case).
    */
-  @Inline
+  /*@Inline
   public boolean objectReferenceBulkCopy(ObjectReference src, Offset srcOffset,
                               ObjectReference dst, Offset dstOffset, int bytes) {
 	Log.writeln("objectReferenceBulkCopy");
@@ -300,11 +300,11 @@ public class RCBaseMutator extends StopTheWorldMutator {
       deleteRef(ref);
       srcCursor = srcCursor.plus(BYTES_IN_ADDRESS);
     }
-    /*if (RCHeader.logRequired(dst)) {
-      coalescingWriteBarrierSlow(dst);
-    }*/
+//    if (RCHeader.logRequired(dst)) {
+//      coalescingWriteBarrierSlow(dst);
+//    }
     return false;
-  }
+  }*/
   
   @Inline
   public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt, Word metaDataA, Word metaDataB) {
