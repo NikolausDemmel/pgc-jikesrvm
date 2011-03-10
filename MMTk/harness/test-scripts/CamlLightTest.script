@@ -1,0 +1,59 @@
+void main() {
+    print (tid(), " === START ===");
+    
+    // test large object allocation
+    // object allways_live = alloc(1,200000);
+    
+    object o;
+    object list = alloc(2,10);
+    
+    list.object[0] = alloc(2,20);
+    
+    int i = 0;  
+    while (i < 100) {
+        i = i + 1;
+        o = alloc(2,10);
+        print (tid(), " === create tree ===");
+        o.object[0] = createCamlTree(1024);
+        print (tid(), " === delete tree ===");
+        o.object[0] = null;
+        print (tid(), " === done tree ===");
+        o = null;
+        if(i % 10 == 110) {
+          list.object[0] = createCamlCycle(1000);
+          object tmp = alloc(2,10);
+          tmp.object[1] = list;
+          list = tmp;
+        } 
+    }
+    
+    print (tid(), " === END ===");
+}
+
+object createCamlCycle(int size) {
+  object head = alloc(2, 20);
+  object tail = head;
+  while(size > 0) {
+    tail.object[0] = alloc(2, 20);
+    tail = tail.object[0];
+    size = size - 1;
+  }
+  tail.object[0] = head;
+  return head;
+}
+
+object createCamlTree(int size) {
+  if (size <= 0) {
+    return null;
+  }
+  if (size == 1) {
+    return alloc(2,20);
+  }
+  int size1 = size/2;
+  int size2 = size - size1;
+  object node = alloc(2,20);
+  node.object[0] = createCamlTree(size1);
+  node.object[1] = createCamlTree(size2);
+  return node;
+}
+  
