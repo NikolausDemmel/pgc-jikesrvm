@@ -47,7 +47,7 @@ public class RefCountCollector extends StopTheWorldCollector {
 	//	/****************************************************************************
 	//	 * Instance fields
 	//	 */
-	protected static RefCountTraceLocal rctl = new RefCountTraceLocal(global().refCountTrace, null);
+	protected static RefCountTraceRoots rctl = new RefCountTraceRoots(global().refCountTrace, null);
 	public static ObjectReferenceDeque ZCT = new ObjectReferenceDeque("zct", RefCount.zcts);
 	private static CountZeroTable ZCT_wrapper;
 //	protected TraceLocal currentTrace = rctl;
@@ -63,6 +63,10 @@ public class RefCountCollector extends StopTheWorldCollector {
 	//	 * @param phaseId The collection phase to perform
 	//	 * @param primary Perform any single-threaded activities using this thread.
 	//	 */
+	public RefCountCollector(){
+		super();
+		ZCT_wrapper = new CountZeroTable();
+	}
 	@Inline
 	@Override
 	public void collectionPhase(short phaseId, boolean primary) {
@@ -99,16 +103,17 @@ public class RefCountCollector extends StopTheWorldCollector {
 		if (phaseId == RefCount.PREPARE_ZCT){
 			Log.writeln("COLLECTOR_PREPARE_ZCT");
 			ZCT.flushLocal();
+			ZCT_wrapper.init(ZCT,RefCount.getCount());	
 			return;
 		}
 		if (phaseId == RefCount.PROCESS_ZCT){
 			Log.writeln("COLLECTOR_PROCESS_ZCT");
 			//TODO process roots
-			Log.writeln("computeThreadRoots");
-			VM.scanning.computeThreadRoots(rctl);
-			Log.writeln("computeStaticRoots");
-			VM.scanning.computeStaticRoots(rctl);
-			ZCT_wrapper = new CountZeroTable(ZCT,global().getZcts_size());
+//			Log.writeln("computeThreadRoots");
+//			VM.scanning.computeThreadRoots(rctl);
+//			Log.writeln("computeStaticRoots");
+//			VM.scanning.computeStaticRoots(rctl);
+		
 			return;
 		}
 		Log.writeln(RefCount.freeMemory().toInt()/(1024f*1024f));
@@ -132,6 +137,14 @@ public class RefCountCollector extends StopTheWorldCollector {
 	@Inline
 	private static RefCount global() {
 		return (RefCount) VM.activePlan.global();
+	}
+	public static CountZeroTable getWrapper(){
+		return ZCT_wrapper;
+	}
+	@Override
+	public TraceLocal getCurrentTrace() {
+		return rctl;
+//		return super.getCurrentTrace();
 	}
 
 }

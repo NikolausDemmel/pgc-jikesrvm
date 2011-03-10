@@ -122,7 +122,7 @@ public class RefCountHeader implements Constants {
     int rtn;
     if (VM.VERIFY_ASSERTIONS) {
       VM.assertions._assert(RefCount.isRefCountObject(object));
-      VM.assertions._assert(isLiveRC(object));
+//      VM.assertions._assert(isLiveRC(object));
     }
     do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);

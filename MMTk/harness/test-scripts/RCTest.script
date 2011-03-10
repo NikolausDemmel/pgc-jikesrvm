@@ -1,18 +1,14 @@
 void main() {
     print (tid(), " === START ===");
-    object o1 = alloc(1,100000);
-    object o2 = alloc(1,100000);
-    object o3 = alloc(1,100000);
-    object o4 = alloc(1,100000);
-    /*o2.object[0] = alloc(1,10000);*/
-    o3 = null;
-   /* o1.object[0] = o2;
-    o1.object[0] = o2.object[0];*/
-    o2 = o1;
-    o1 = null;
-    o2 = null;
-    
-    print (tid(), " === END ===");
+    object o1 = alloc(1000,0);
+    int i = 0;
+    while (i<500) {
+    	o1.object[0] = alloc(0,1000);
+    	i = i + 1;
+    }
+    print(tid(), " === Done with small objects ===");
+    object o2 = alloc(0,700000);
+    print (tid(), " === END ==="); 
 }
 
 /*

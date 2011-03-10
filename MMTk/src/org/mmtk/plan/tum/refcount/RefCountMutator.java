@@ -120,7 +120,7 @@ public class RefCountMutator extends StopTheWorldMutator {
 		case RefCount.ALLOC_NON_MOVING:
 		case RefCount.ALLOC_CODE:
 		case RefCount.ALLOC_IMMORTAL:
-			RefCountHeader.initializeHeader(ref, false);	
+			RefCountHeader.initializeHeader(ref, true);	
 			ExplicitFreeListSpace.unsyncSetLiveBit(ref);
 			break;
 
@@ -138,35 +138,6 @@ public class RefCountMutator extends StopTheWorldMutator {
 	}	
 
 
-	public synchronized void out(boolean exit) {
-		addrarr = AddressArray.create(500);
-		if(hcnt%1000==0){
-
-			//			Log.writeln("refs:");
-			//			Enumeration<String> addresses = RefCount.refTable.keys();
-			//			while(addresses.hasMoreElements()){
-			//				String addr = addresses.nextElement();
-			//				ObjectReference obj = RefCount.refTable.get(addr);
-			//				int count = RefCountHeader.getRC(obj);
-			//				Log.writeln(addr+"\t->\t"+obj+" ("+count+")");
-			//				RefCountHeader.getRC(obj);
-			//			}	
-			Log.write("ref_size: ");
-			//			Log.writeln(RefCount.refTable.size());
-			Log.write("ZCT_size: ");
-			//			Log.writeln(RefCount.ZCT.size());
-			Log.write(iinc);
-			Log.writeln(" times incremented");
-			Log.write(idec);
-			Log.writeln(" times decremented");
-			Log.write(idel);
-			Log.writeln(" times deleted");
-			//			for(ObjectReference obj : RefCount.ZCT){
-			//				Log.writeln(obj);
-			//			}
-			if(exit)System.exit(42);		//		Log.writeln("tablesize\t"+RefCount.refTable.size());
-		}
-	}
 
 	/**
 	 * Return the allocator instance associated with a space <code>space</code>,
@@ -267,6 +238,8 @@ public class RefCountMutator extends StopTheWorldMutator {
 		//		Log.writeln("src\t" +src.toAddress().toInt());
 		super.wordWrite(src, slot, value, metaDataA, metaDataB, mode);
 	}
+	@Inline
+	@Uninterruptible
 	public static final void delete(ObjectReference obj) {
 		if (VM.VERIFY_ASSERTIONS) {
 			VM.assertions._assert(RefCount.isRefCountObject(obj));
@@ -274,13 +247,14 @@ public class RefCountMutator extends StopTheWorldMutator {
 		}
 		if(RefCountHeader.decRC(obj) == RefCountHeader.DEC_KILL) {
 			Log.writeln(RefCount.freeMemory().toInt());	
-//			ZCT.push(obj);
+			ZCT.push(obj);
+			RefCount.incCount();
 			Log.write("deleting object ");
 			Log.writeln(obj);
 //			VM.scanning.scanObject(clt, obj);
 			//CamlLight.camlSpace.free(obj);
 //			VM.scanning.scanObject(RefCountTraceLocal, obj);
-//			RefCount.rcSpace.free(obj);
+			RefCount.rcSpace.free(obj);
 //			RefCount.rcSpace.prepare();	
 //			RefCount.rcSpace.release();	
 		}
@@ -289,7 +263,7 @@ public class RefCountMutator extends StopTheWorldMutator {
 	private void writeBarrier(ObjectReference old, ObjectReference tgt) {
 //		Log.writeln(RefCount.freeMemory().toInt()/(1024f*1024f));	
 //		Log.writeln(RefCount.freeMemory().toInt());	
-//		Log.write("writeBarrier(");
+//		Log.writeln("writeBarrier(");
 //		Log.write(old);
 //		Log.write(",");
 //		Log.write(tgt);
@@ -301,50 +275,6 @@ public class RefCountMutator extends StopTheWorldMutator {
 			delete(old);
 		}
 	}
-//	private void writeBarrier() {
-//		RefCountHeader.incRC(tgt);
-//		//		Log.writeln("RefCountMutator.objectReferenceWrite()");
-//		try{
-//			hcnt++;
-//			if(tgt!=null){
-//				// Zielobjekt ist bekannt
-//				Log.writeln("mooh");
-//				Log.writeln(slot.toInt());
-//				//				refTable.isMember(slot);
-//				//				Log.writeln(RefCount.refTable.contains(slot.toInt()));
-//				//				Log.writeln(RefCount.refTable.indexOf(slot.toInt()));
-//				if(refTable.isMember(slot)){
-//					refTable.getNext(slot);
-//
-//					ObjectReference old = RefCount.refTable.get(slot.toInt());
-//					/* Ziel_neu != Ziel_alt */
-//					if(!old.equals(tgt)){
-//						idec++;
-//						/* RC(Ziel_alt)-- */
-//
-//						int retval = !RefCountHeader.isLiveRC(old) ? RefCountHeader.DEC_KILL : RefCountHeader.decRC(old);
-//						if(retval==RefCountHeader.DEC_KILL){
-//							idel=(retval==RefCountHeader.DEC_KILL)?idel+1:idel;
-//							/* töten!!!! */
-//							ZCT.push(old);
-//							//						RefCount.ZCT.addObject(old);
-//							RefCount.refTable.remove(slot.toInt());
-//						}
-//					}
-//				}else{
-//					if(RefCount.isRefCountObject(tgt)){
-//						//				Log.writeln("if if else");
-//						RefCountHeader.incRC(tgt);
-//						iinc++;
-//					}
-//				}
-//			}
-//			out(false);
-//		}catch(Exception e){
-//			e.printStackTrace();
-//			System.exit(mode);
-//		}
-//	}
 
 	/**
 	 * Perform a per-mutator collection phase.
@@ -365,7 +295,8 @@ public class RefCountMutator extends StopTheWorldMutator {
 		}
 		if (phaseId == RefCount.RELEASE) {
 			freelist.release();
-			super.collectionPhase(phaseId, primary);
+			freelist.flush();
+//			super.collectionPhase(phaseId, primary);
 			return;
 		}
 		if (phaseId == RefCount.PREPARE_ZCT) {

@@ -33,12 +33,13 @@ import org.vmmagic.unboxed.ObjectReference;
 @Uninterruptible
 public class RefCount extends StopTheWorld {
 //
+	private static int count = 0;
 	  public final static SharedDeque zcts = new SharedDeque("zcts",metaDataSpace, 1);
 	/****************************************************************************
 	 * Class variables
 	 */
 	public static final ExplicitFreeListSpace rcSpace = new ExplicitFreeListSpace("rc", VMRequest.create());
-	private static int zcts_size=0;
+	private static final RefCountSweeper sweeper = new RefCountSweeper();
 
 	public static final int RC_DESC = rcSpace.getDescriptor();
 	public static final int SCAN_MARK = 0;
@@ -49,18 +50,20 @@ public class RefCount extends StopTheWorld {
 	public static final short PROCESS_ZCT = Phase.createSimple("processZCT");
 	public static final short TRACE_ROOT_SET = Phase.createSimple("traceRootSet");
 
-	protected static final short process_zct = Phase.createComplex("prepare-zct",
+	protected static final short process_zct = Phase.createComplex("process-zct",
+		      Phase.scheduleCollector  (PROCESS_ZCT),
+		      Phase.scheduleGlobal     (PROCESS_ZCT));
+	protected static final short prepare_zct = Phase.createComplex("prepare-zct",
 		      Phase.scheduleMutator     (PREPARE_ZCT),
-		      Phase.scheduleCollector   (PREPARE_ZCT),
 		      Phase.scheduleGlobal     (PREPARE_ZCT),
-		      Phase.scheduleCollector  (PROCESS_ZCT));
+		      Phase.scheduleCollector   (PREPARE_ZCT));
 
 	public  short collection = Phase.createComplex("collection", null,
 			Phase.scheduleComplex(initPhase),
+			Phase.scheduleComplex(prepare_zct),
+			Phase.scheduleComplex(rootClosurePhase),
 			Phase.scheduleComplex(process_zct),
-//			PROCESS_ZCT,
-//			Phase.scheduleComplex(rootClosurePhase),
-//			Phase.scheduleComplex(completeClosurePhase),
+			Phase.scheduleComplex(completeClosurePhase),
 			Phase.scheduleComplex(finishPhase)
 	);
 
@@ -113,15 +116,18 @@ public RefCount(){
 //			Log.writeln("RELEASE");
 //			rcTrace.release();
 			rcSpace.release();
-			super.collectionPhase(phaseId);
+			setCount(0);
 			return;
 		}
 		if (phaseId == PREPARE_ZCT) {
 			Log.writeln("GLOBAL_PREPARE_ZCT");
-			zcts_size = zcts.enqueuedPages();
 			return;
 		}
+		if(phaseId==PROCESS_ZCT){
 
+			rcSpace.sweepCells(sweeper);
+			return;
+		}
 		super.collectionPhase(phaseId);
 	}
 
@@ -129,9 +135,7 @@ public RefCount(){
 	 * Accounting
 	 */
 
-	public static int getZcts_size() {
-		return zcts_size;
-	}
+	
 
 	/**
 	 * Return the number of pages reserved for use given the pending
@@ -162,11 +166,21 @@ public RefCount(){
 			return true;
 		return super.willNeverMove(object);
 	}
-	@Interruptible
-	@Override
-	protected void registerSpecializedMethods() {
-		// TODO Auto-generated method stub
-		super.registerSpecializedMethods();
+//	@Interruptible
+//	@Override
+//	protected void registerSpecializedMethods() {
+//		// TODO Auto-generated method stub
+//		super.registerSpecializedMethods();
+//	}
+	public synchronized static void setCount(int ncount) {
+		RefCount.count = ncount;
 	}
-
+	public synchronized static int getCount() {
+		Log.writeln("counter");
+		Log.writeln(RefCount.count);
+		return count;
+	}
+	public synchronized static void incCount(){
+		count++;
+	}
 }

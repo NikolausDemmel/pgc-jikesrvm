@@ -12,6 +12,8 @@
  */
 package org.mmtk.plan.tum.refcount;
 
+import static org.mmtk.policy.SegregatedFreeListSpace.MAX_FREELIST_OBJECT_BYTES;
+
 import org.mmtk.plan.StopTheWorldConstraints;
 
 
@@ -36,16 +38,11 @@ public class RefCountConstraints extends StopTheWorldConstraints {
 	@Override
 	public int gcHeaderWords() { return RefCountHeader.GC_HEADER_WORDS_REQUIRED; }
 	@Override
-	public int maxNonLOSDefaultAllocBytes() { return SegregatedFreeListSpace.MAX_FREELIST_OBJECT_BYTES; }
-	@Override
-	public int numSpecializedScans() { return 1; }
-	@Override
 	public boolean needsObjectReferenceWriteBarrier() { return true; }
 	@Override
 	public boolean needsObjectReferenceNonHeapWriteBarrier() { return true;
 	}
 	@Override
-	public boolean needsWordWriteBarrier() { return true;
-	}
+	  public int maxNonLOSDefaultAllocBytes() { return MAX_FREELIST_OBJECT_BYTES; }
 
 }
