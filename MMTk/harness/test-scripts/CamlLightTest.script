@@ -2,19 +2,32 @@ void main() {
     print (tid(), " === START ===");
     
     // test large object allocation
-    // object allways_live = alloc(1,200000);
+    object allways_live1 = alloc(1,200000);
+    object allways_live2 = alloc(200000,200000);
+    object allways_live3 = alloc(300,300);
+    object allways_live4 = alloc(200,200);
+    object allways_live5 = alloc(100,100);
     
     object o;
     object list = alloc(2,10);
     
     list.object[0] = alloc(2,20);
     
+    object tmp2;
+    
     int i = 0;  
     while (i < 100) {
         i = i + 1;
         o = alloc(2,10);
         print (tid(), " === create tree ===");
-        o.object[0] = createCamlTree(1024);
+        tmp2 = createCamlTree(500);
+        o.object[0] = tmp2;
+        print (tid(), " === delete tree ===");
+        o.object[0] = null;
+        print (tid(), " === done tree ===");
+        print (tid(), " === create nc tree ===");
+        tmp2 = createTree(500);
+        o.object[0] = tmp2;
         print (tid(), " === delete tree ===");
         o.object[0] = null;
         print (tid(), " === done tree ===");
@@ -56,4 +69,18 @@ object createCamlTree(int size) {
   node.object[1] = createCamlTree(size2);
   return node;
 }
-  
+
+object createTree(int size) {
+  if (size <= 0) {
+    return null;
+  }
+  if (size == 1) {
+    return alloc(2,10);
+  }
+  int size1 = size/2;
+  int size2 = size - size1;
+  object node = alloc(2,10);
+  node.object[0] = createTree(size1);
+  node.object[1] = createTree(size2);
+  return node;
+}
