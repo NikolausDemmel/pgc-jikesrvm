@@ -15,6 +15,7 @@ package org.mmtk.plan.tum.cltwospace;
 import org.mmtk.plan.TraceLocal;
 import org.mmtk.plan.Trace;
 import org.mmtk.policy.Space;
+import org.mmtk.vm.VM;
 
 import org.vmmagic.pragma.*;
 import org.vmmagic.unboxed.*;
@@ -52,6 +53,7 @@ public final class CamlLightTraceLocal extends TraceLocal {
     }
     if (Space.isInSpace(CamlLight.CS, object)) {
       // @demmeln not sure about this
+      VM.assertions._assert(false);
       return CamlLight.camlSpace.isLive(object);
     }
     return super.isLive(object);
