@@ -31,8 +31,8 @@ public class RCBaseConstraints extends StopTheWorldConstraints {
   public int gcHeaderWords() { return RCHeader.GC_HEADER_WORDS_REQUIRED; }
   @Override
   public boolean needsObjectReferenceWriteBarrier() { return true; }
-  @Override
-  public boolean needsObjectReferenceNonHeapWriteBarrier() { return true; }
+  //@Override
+  //public boolean needsObjectReferenceNonHeapWriteBarrier() { return true; }
   @Override
   public int maxNonLOSDefaultAllocBytes() { return MAX_FREELIST_OBJECT_BYTES; }
 }

@@ -255,7 +255,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
    * @param mode The context in which the store occured
    * @return True if the swap was successful.
    */
-  /*@Inline
+  @Inline
   public boolean objectReferenceTryCompareAndSwap(ObjectReference src, Address slot,
                                                ObjectReference old, ObjectReference tgt, Word metaDataA,
                                                Word metaDataB, int mode) {
@@ -266,7 +266,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
     addRef(tgt);
     //}
     return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
-  }*/
+  }
 
   /**
    * A number of references are about to be copied from object
@@ -286,7 +286,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
    * @return True if the update was performed by the barrier, false if
    * left to the caller (always false in this case).
    */
-  /*@Inline
+  @Inline
   public boolean objectReferenceBulkCopy(ObjectReference src, Offset srcOffset,
                               ObjectReference dst, Offset dstOffset, int bytes) {
 	Log.writeln("objectReferenceBulkCopy");
@@ -304,15 +304,16 @@ public class RCBaseMutator extends StopTheWorldMutator {
 //      coalescingWriteBarrierSlow(dst);
 //    }
     return false;
-  }*/
+  }
   
   @Inline
   public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt, Word metaDataA, Word metaDataB) {
 	  Log.writeln("objectReferenceNonHeapWrite");
-	  VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
 	  ObjectReference old = slot.loadObjectReference();
 	  deleteRef(old);
 	  addRef(tgt);
+	  
+	  VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
   }
   
   @Inline
@@ -321,7 +322,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
 		      //coalescingWriteBarrierSlow(src);
 		      if (RCHeader.decRC(old) == RCHeader.DEC_KILL) {
 		    	  Log.write(RCHeader.getRC(old));
-		    	  Log.write(" -> delete object");
+		    	  Log.writeln(" -> delete object");
 		    	  //RCBase.rcSpace.free(old);
 		    	  //RCBase.rcSpace.release();
 		    	  //decBuffer.push(old);
