@@ -75,11 +75,12 @@ public class RCBase extends StopTheWorld {
    * This is the phase that is executed to perform a collection.
    */
   public short collection = Phase.createComplex("collection", null,
-      Phase.scheduleComplex(initPhase),
-      Phase.scheduleComplex(rootClosurePhase),
-      Phase.scheduleComplex(refCountCollectionPhase),
-      Phase.scheduleComplex(completeClosurePhase),
-      Phase.scheduleComplex(finishPhase));
+      //Phase.scheduleComplex(initPhase),
+      //Phase.scheduleComplex(rootClosurePhase),
+      Phase.scheduleComplex(refCountCollectionPhase)
+      //Phase.scheduleComplex(completeClosurePhase),
+      //Phase.scheduleComplex(finishPhase)
+      );
 
   // CHECKSTYLE:ON
 

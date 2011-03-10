@@ -106,7 +106,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
       //modBuffer.push(ref);
     //case RCBase.ALLOC_CODE:
       //decBuffer.push(ref);
-      RCHeader.initializeHeader(ref, true);
+      RCHeader.initializeHeader(ref, false);
       ExplicitFreeListSpace.unsyncSetLiveBit(ref);
       return;
     /*case RCBase.ALLOC_IMMORTAL:
@@ -311,8 +311,8 @@ public class RCBaseMutator extends StopTheWorldMutator {
 	  Log.writeln("objectReferenceNonHeapWrite");
 	  VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
 	  ObjectReference old = slot.loadObjectReference();
-	  deleteRef(old);
-	  addRef(tgt);
+	  //deleteRef(old);
+	  //addRef(tgt);
   }
   
   @Inline
@@ -323,7 +323,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
 		    	  Log.write(RCHeader.getRC(old));
 		    	  Log.write(" -> delete object");
 		    	  RCBase.rcSpace.free(old);
-		    	  //RCBase.rcSpace.release();
+		    	  RCBase.rcSpace.release();
 		    	  //decBuffer.push(old);
 		      }
 			}
