@@ -311,8 +311,8 @@ public class RCBaseMutator extends StopTheWorldMutator {
 	  Log.writeln("objectReferenceNonHeapWrite");
 	  VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
 	  ObjectReference old = slot.loadObjectReference();
-	  //deleteRef(old);
-	  //addRef(tgt);
+	  deleteRef(old);
+	  addRef(tgt);
   }
   
   @Inline
@@ -322,8 +322,8 @@ public class RCBaseMutator extends StopTheWorldMutator {
 		      if (RCHeader.decRC(old) == RCHeader.DEC_KILL) {
 		    	  Log.write(RCHeader.getRC(old));
 		    	  Log.write(" -> delete object");
-		    	  RCBase.rcSpace.free(old);
-		    	  RCBase.rcSpace.release();
+		    	  //RCBase.rcSpace.free(old);
+		    	  //RCBase.rcSpace.release();
 		    	  //decBuffer.push(old);
 		      }
 			}

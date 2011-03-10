@@ -189,7 +189,7 @@ public class RCBase extends StopTheWorld {
 
     if (phaseId == RELEASE) {
       //rootTrace.release();
-      rcSpace.release();
+      //rcSpace.release();
       return;
     }
 
