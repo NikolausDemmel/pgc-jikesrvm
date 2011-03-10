@@ -49,9 +49,9 @@ public final class RCFindRootSetTraceLocal extends TraceLocal {
    * @param object The object.
    * @return <code>true</code> if the object is reachable.
    */
-  public boolean isLive(ObjectReference object) {
+  /*public boolean isLive(ObjectReference object) {
     return RCBase.isRCObject(object) && RCHeader.isLiveRC(object) || super.isLive(object);
-  }
+  }*/
 
   /**
    * When we trace a non-root object we do nothing.

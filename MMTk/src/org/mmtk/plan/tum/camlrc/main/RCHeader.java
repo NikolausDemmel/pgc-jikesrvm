@@ -179,7 +179,7 @@ public class RCHeader implements Constants {
   /**
    * Attempt to atomically mark this object. Return true if the mark was performed.
    */
-  @Inline
+  /*@Inline
   public static boolean testAndMark(ObjectReference object) {
     Word oldValue, newValue;
     do {
@@ -190,7 +190,7 @@ public class RCHeader implements Constants {
       newValue = oldValue.or(MARK_BIT_MASK);
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
     return true;
-  }
+  }*/
 
   /**
    * Perform any required initialization of the GC portion of the header.
@@ -210,11 +210,11 @@ public class RCHeader implements Constants {
    * @param object The object whose liveness is to be tested
    * @return True if the object is alive
    */
-  @Inline
+  /*@Inline
   @Uninterruptible
   public static boolean isLiveRC(ObjectReference object) {
     return object.toAddress().loadWord(RC_HEADER_OFFSET).GE(LIVE_THRESHOLD);
-  }
+  }*/
 
   /**
    * Return the reference count for the object.
@@ -237,11 +237,14 @@ public class RCHeader implements Constants {
   public static void incRC(ObjectReference object) {
     Word oldValue, newValue;
     if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(RCBase.isRCObject(object));
-    do {
+    oldValue = object.toAddress().loadWord();
+    newValue = oldValue.plus(INCREMENT);
+    object.toAddress().store(newValue);
+    /*do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
       newValue = oldValue.plus(INCREMENT);
       if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
-    } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
+    } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));*/
   }
 
   /**
@@ -262,7 +265,11 @@ public class RCHeader implements Constants {
       VM.assertions._assert(RCBase.isRCObject(object));
       //VM.assertions._assert(isLiveRC(object));
     }
-    do {
+    oldValue = object.toAddress().loadWord();
+    newValue = oldValue.minus(INCREMENT);
+    object.toAddress().store(newValue);
+    return (newValue.LT(LIVE_THRESHOLD) ? DEC_KILL : DEC_ALIVE);
+    /*do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
       newValue = oldValue.minus(INCREMENT);
       if (newValue.LT(LIVE_THRESHOLD)) {
@@ -271,6 +278,6 @@ public class RCHeader implements Constants {
         rtn = DEC_ALIVE;
       }
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
-    return rtn;
+    return rtn;*/
   }
 }
