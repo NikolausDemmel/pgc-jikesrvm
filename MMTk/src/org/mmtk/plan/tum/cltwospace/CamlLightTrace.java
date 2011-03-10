@@ -42,16 +42,17 @@ public final class CamlLightTrace extends TransitiveClosure {
     if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(obj != null);
 
 //    Log.prependThreadId();
-    Log.write("processEdge - source: ");
-    Log.write(source);
-    Log.write(" slot: ");
-    Log.write(slot);
-    Log.write(" obj: ");
-    Log.writeln(obj);
+//    Log.write("processEdge - source: ");
+//    Log.write(source);
+//    Log.write(" slot: ");
+//    Log.write(slot);
+//    Log.write(" obj: ");
+//    Log.writeln(obj);
     
     if (CamlLight.isCamlLightObject(obj)) {
-      slot.store(ObjectReference.nullReference());
-//      CamlLightMutator.delete(obj);
+      
+      //slot.store(ObjectReference.nullReference());
+      CamlLightMutator.delete(obj);
     }
   }
 }

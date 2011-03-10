@@ -14,6 +14,7 @@ package org.mmtk.plan.tum.cltwospace;
 
 import org.mmtk.plan.StopTheWorldConstraints;
 import org.mmtk.plan.tum.cl.CamlLightHeader;
+import org.mmtk.policy.MarkSweepSpace;
 import org.mmtk.policy.SegregatedFreeListSpace;
 
 import org.vmmagic.pragma.*;
@@ -26,21 +27,32 @@ import org.vmmagic.pragma.*;
  */
 @Uninterruptible
 public class CamlLightConstraints extends StopTheWorldConstraints {
+  
+  @Inline
+  private int max(int a, int b) {
+    if (a > b)
+      return a;
+    else
+      return b;
+  }
+  
   @Override
-  public int gcHeaderBits() { return CamlLightHeader.GLOBAL_GC_BITS_REQUIRED; }
+  public int gcHeaderBits() { return max(MarkSweepSpace.LOCAL_GC_BITS_REQUIRED,
+                                         CamlLightHeader.GLOBAL_GC_BITS_REQUIRED); }
   @Override
-  public int gcHeaderWords() { return CamlLightHeader.GC_HEADER_WORDS_REQUIRED; }
+  public int gcHeaderWords() { return max(MarkSweepSpace.GC_HEADER_WORDS_REQUIRED,
+                                          CamlLightHeader.GC_HEADER_WORDS_REQUIRED); }
   @Override
   public int maxNonLOSDefaultAllocBytes() { return SegregatedFreeListSpace.MAX_FREELIST_OBJECT_BYTES; }
   
-  @Override
-  public boolean needsAddressWriteBarrier() { return true; }
-  @Override
-  public boolean needsWordWriteBarrier() { return true; }
-  
+//  @Override
+//  public boolean needsAddressWriteBarrier() { return true; }
+//  @Override
+//  public boolean needsWordWriteBarrier() { return true; }
+//  
   @Override
   public boolean needsObjectReferenceWriteBarrier() { return true; }
-  @Override
-  public boolean needsObjectReferenceNonHeapWriteBarrier() { return true;}
+//  @Override
+//  public boolean needsObjectReferenceNonHeapWriteBarrier() { return true;}
   
 }

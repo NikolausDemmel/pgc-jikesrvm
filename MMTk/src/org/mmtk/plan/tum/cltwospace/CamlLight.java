@@ -21,6 +21,12 @@ import org.mmtk.utility.heap.VMRequest;
 import org.vmmagic.pragma.*;
 import org.vmmagic.unboxed.ObjectReference;
 
+/**
+ * Assumptions:
+ * 1) Objects of type Ocaml Heap Data 
+ */
+
+
 
 /**
  * This class implements the global state of a a simple allocator
@@ -51,6 +57,14 @@ public class CamlLight extends StopTheWorld {
   public static final boolean isCamlLightObject(ObjectReference object) {
     return !object.isNull() && Space.isInSpace(CS, object);
   }
+ 
+  public static final boolean isMarkSweepObject(ObjectReference object) {
+    return !object.isNull() && Space.isInSpace(MS, object);
+  } 
+  
+  public static final boolean isRCRelevantObject(ObjectReference object) {
+    return isCamlLightObject(object) || isMarkSweepObject(object);
+  }  
   
   /**
    * Perform a (global) collection phase.
@@ -74,6 +88,7 @@ public class CamlLight extends StopTheWorld {
     if (phaseId == RELEASE) {
       msTrace.release();
       msSpace.release();
+      camlSpace.release();
       super.collectionPhase(phaseId);
       return;
     }

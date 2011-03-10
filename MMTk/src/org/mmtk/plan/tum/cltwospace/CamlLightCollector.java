@@ -37,8 +37,8 @@ public class CamlLightCollector extends StopTheWorldCollector {
   /************************************************************************
    * Instance fields
    */
-//  private final CamlLightTraceLocal trace = new CamlLightTraceLocal(global().msTrace);
-//  protected final TraceLocal currentTrace = trace;
+  private final CamlLightTraceLocal trace = new CamlLightTraceLocal(global().msTrace);
+  protected final TraceLocal currentTrace = trace;
 
 
   /****************************************************************************
@@ -48,10 +48,10 @@ public class CamlLightCollector extends StopTheWorldCollector {
 //  /**
 //   * Perform a garbage collection
 //   */
-  @Override
-  public final void collect() {
-    VM.assertions.fail("GC Triggered in NoGC Plan. Is -X:gc:ignoreSystemGC=true ?");
-  }
+//  @Override
+//  public final void collect() {
+//    VM.assertions.fail("GC Triggered in NoGC Plan. Is -X:gc:ignoreSystemGC=true ?");
+//  }
 
   /**
    * Perform a per-collector collection phase.
@@ -63,22 +63,22 @@ public class CamlLightCollector extends StopTheWorldCollector {
   @Override
   public final void collectionPhase(short phaseId, boolean primary) {
     
-//    if (phaseId == CamlLight.PREPARE) {
-//      super.collectionPhase(phaseId, primary);
-//      trace.prepare();
-//      return;
-//    }
-//
-//    if (phaseId == CamlLight.CLOSURE) {
-//      trace.completeTrace();
-//      return;
-//    }
-//
-//    if (phaseId == CamlLight.RELEASE) {
-//      trace.release();
-//      super.collectionPhase(phaseId, primary);
-//      return;
-//    }
+    if (phaseId == CamlLight.PREPARE) {
+      super.collectionPhase(phaseId, primary);
+      trace.prepare();
+      return;
+    }
+
+    if (phaseId == CamlLight.CLOSURE) {
+      trace.completeTrace();
+      return;
+    }
+
+    if (phaseId == CamlLight.RELEASE) {
+      trace.release();
+      super.collectionPhase(phaseId, primary);
+      return;
+    }
 
     super.collectionPhase(phaseId, primary);
 
@@ -94,9 +94,9 @@ public class CamlLightCollector extends StopTheWorldCollector {
     return (CamlLight) VM.activePlan.global();
   }
 
-//  /** @return The current trace instance. */
-//  @Override
-//  public final TraceLocal getCurrentTrace() {
-//    return currentTrace;
-//  }
+  /** @return The current trace instance. */
+  @Override
+  public final TraceLocal getCurrentTrace() {
+    return currentTrace;
+  }
 }

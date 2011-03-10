@@ -77,8 +77,17 @@ public class CamlLightHeader implements Constants {
 //  @Inline
 //  @Uninterruptible
 //  public static boolean isLiveRC(ObjectReference object) {
+//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(CamlLight.isCamlLightObject(object));
+//    
 //    return object.toAddress().loadWord(RC_HEADER_OFFSET).GE(LIVE_THRESHOLD);
 //  }
+  @Inline
+  @Uninterruptible
+  public static boolean isLiveRC(ObjectReference object) {
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(CamlLight.isCamlLightObject(object));
+    
+    return CamlLight.camlSpace.isLive(object);
+  }
 
   /**
    * Return the reference count for the object.
@@ -103,7 +112,8 @@ public class CamlLightHeader implements Constants {
   public static void incRC(ObjectReference object) {
     Word oldValue, newValue;
     
-    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(CamlLight.isCamlLightObject(object));
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(CamlLight.isCamlLightObject(object), "not caml");
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(isLiveRC(object), "not live");
     
     do {
       oldValue = object.toAddress().prepareWord(RC_HEADER_OFFSET);
@@ -113,10 +123,10 @@ public class CamlLightHeader implements Constants {
 //    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
     
 //    Log.prependThreadId();
-    Log.write("incRC - object: ");
-    Log.write(object);
-    Log.write(" newValue: ");
-    Log.writeln(newValue);
+//    Log.write("incRC - object: ");
+//    Log.write(object);
+//    Log.write(" newValue: ");
+//    Log.writeln(newValue);
     
 //    return oldValue.LT(LIVE_THRESHOLD); // old value < threshold means that new value must be "1" (i.e. INCREMENT)
   }
@@ -138,7 +148,7 @@ public class CamlLightHeader implements Constants {
     
     if (VM.VERIFY_ASSERTIONS) {
       VM.assertions._assert(CamlLight.isCamlLightObject(object));
-//      VM.assertions._assert(isLiveRC(object));
+      VM.assertions._assert(isLiveRC(object));
     }
     
     do {
@@ -152,10 +162,10 @@ public class CamlLightHeader implements Constants {
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
 
 //    Log.prependThreadId();
-    Log.write("decRC - object: ");
-    Log.write(object);
-    Log.write(" newValue: ");
-    Log.writeln(newValue);
+//    Log.write("decRC - object: ");
+//    Log.write(object);
+//    Log.write(" newValue: ");
+//    Log.writeln(newValue);
     
     return rtn;
   }
