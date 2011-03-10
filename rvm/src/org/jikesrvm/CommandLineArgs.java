@@ -81,7 +81,8 @@ public class CommandLineArgs {
     BOOTCLASSPATH_P_ARG,
     BOOTCLASSPATH_A_ARG,
     BOOTSTRAP_CLASSES_ARG,
-    PROCESSORS_ARG
+    PROCESSORS_ARG,
+    JDWP_ARG,
   }
 
   /** Represent a single command line prefix */
@@ -203,6 +204,8 @@ public class CommandLineArgs {
                                             new Prefix("-X:vm:help$", PrefixType.HELP_ARG),
                                             new Prefix("-X:vm$", PrefixType.HELP_ARG),
                                             new Prefix("-X:vm:", PrefixType.ARG),
+                                            new Prefix("-X:runjdwp:", PrefixType.JDWP_ARG),
+                                            
 
                                             /* Silently ignored */
                                             new Prefix("-Xverify", PrefixType.VERIFY_ARG),
@@ -663,6 +666,9 @@ public class CommandLineArgs {
             VM.sysExit(VM.EXIT_STATUS_BOGUS_COMMAND_LINE_ARG);
           }
           break;
+        case JDWP_ARG:
+        	VM.jdwpArgs = arg;
+        	break;
       }
     }
   }

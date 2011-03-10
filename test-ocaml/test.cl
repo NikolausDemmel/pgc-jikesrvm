@@ -17,4 +17,4 @@ let rec g = function
 
 (*let (a,b,c,d,e,f) = §(g 25, g 25, g 25, g 25, g 25, g 25) in a+b+c+d+e+f*)
 
-let a = g_ 10 in a
+let a = g_ 15 in a

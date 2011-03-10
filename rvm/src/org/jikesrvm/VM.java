@@ -12,6 +12,8 @@
  */
 package org.jikesrvm;
 
+import gnu.classpath.jdwp.Jdwp;
+
 import org.jikesrvm.ArchitectureSpecific.ThreadLocalState;
 import org.jikesrvm.adaptive.controller.Controller;
 import org.jikesrvm.adaptive.util.CompilerAdvice;
@@ -478,12 +480,30 @@ public class VM extends Properties implements Constants, ExitStatus {
     if (VM.BuildForAdaptiveSystem) {
       CompilerAdvice.postBoot();
     }
-
+    
     // enable alignment checking
     if (VM.AlignmentChecking) {
       SysCall.sysCall.sysEnableAlignmentChecking();
     }
 
+	if (jdwpArgs != null) {
+		// Run necessary class initializsers
+		//runClassInitializer("gnu.classpath.jdwp.transport.JdwpConnection");
+		// Create a daemon Jdwp thread and wait for it to be initialized
+		VM.sysWriteln("Starting JDWP Thread with: "+jdwpArgs);
+		Jdwp jdwp = new Jdwp();
+		jdwp.setDaemon(true);
+		jdwp.configure(jdwpArgs);
+		jdwp.start();
+		try {
+			VM.sysWriteln("Joining JDWP Thread");
+			jdwp.join();
+		} catch (InterruptedException e) {
+			throw new Error(e);
+		}
+	}
+	VM.sysWriteln("Joined JDWP Thread");
+    
     // Schedule "main" thread for execution.
     if (verboseBoot >= 2) VM.sysWriteln("Creating main thread");
     // Create main thread.
@@ -2452,6 +2472,7 @@ public class VM extends Properties implements Constants, ExitStatus {
    dieAbruptlyRecursiveSystemTrouble() only.  */
 
   private static boolean inDieAbruptlyRecursiveSystemTrouble = false;
+  public static String jdwpArgs;
 
   public static void dieAbruptlyRecursiveSystemTrouble() {
     if (!inDieAbruptlyRecursiveSystemTrouble) {
