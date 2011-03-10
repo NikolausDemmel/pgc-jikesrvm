@@ -230,7 +230,7 @@ public class RCBaseMutator extends StopTheWorldMutator {
   public void objectReferenceWrite(ObjectReference src, Address slot,
                            ObjectReference tgt, Word metaDataA,
                            Word metaDataB, int mode) {
-	Log.writeln("objectReferenceWrite");
+	//Log.writeln("objectReferenceWrite");
     //if (RCHeader.logRequired(src)) {
     ObjectReference old = slot.loadObjectReference();
 	deleteRef(old);
@@ -317,17 +317,139 @@ public class RCBaseMutator extends StopTheWorldMutator {
   }
   
   @Inline
+  @Override
+  public void extentWrite(ObjectReference src, Address slot, Extent value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("extentWrite");
+	
+    ObjectReference old = slot.loadObjectReference();
+	deleteRef(old);
+	
+	VM.barriers.extentWrite(src, value, metaDataA, metaDataB, mode);
+  }
+  
+  
+
+  @Inline
+@Override
+public void booleanWrite(ObjectReference src, Address slot, boolean value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("booleanWrite");
+	VM.barriers.booleanWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+@Inline
+@Override
+public void byteWrite(ObjectReference src, Address slot, byte value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("byteWrite");
+	VM.barriers.byteWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+@Inline
+@Override
+public void charWrite(ObjectReference src, Address slot, char value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("charWrite");
+	VM.barriers.charWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+@Inline
+@Override
+public void shortWrite(ObjectReference src, Address slot, short value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("shortWrite");
+	VM.barriers.shortWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+@Inline
+@Override
+public void intWrite(ObjectReference src, Address slot, int value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("intWrite");
+	VM.barriers.intWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+@Inline
+@Override
+public void longWrite(ObjectReference src, Address slot, long value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("longWrite");
+	VM.barriers.longWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+  @Inline
+  @Override
+  public void floatWrite(ObjectReference src, Address slot, float value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.write("floatWrite");
+	if (slot != null && !slot.isZero()) {
+		ObjectReference s = slot.loadObjectReference();
+		if (s != null && !s.isNull() && RCBase.isRCObject(s))
+			Log.write(" slot is or");
+		deleteRef(s);
+	}
+	Log.writeln();
+	VM.barriers.floatWrite(src, value, metaDataA, metaDataB, mode);
+  }
+
+@Inline
+@Override
+public void doubleWrite(ObjectReference src, Address slot, double value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("doubleWrite");
+	VM.barriers.doubleWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+@Inline
+@Override
+public void wordWrite(ObjectReference src, Address slot, Word value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("wordWrite");
+	VM.barriers.wordWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+  @Inline
+  @Override
+  public void addressWrite(ObjectReference src, Address slot, Address value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.write("addressWrite ");
+	
+	/*ObjectReference s;
+	if (slot != null && !slot.isZero()) {
+		s = slot.loadObjectReference();
+		if (s != null && !s.isNull() && RCBase.isRCObject(s))
+			Log.write("slot is or ");
+		deleteRef(s);
+	}
+	if (value != null && !value.isZero()) {
+		s = value.loadObjectReference();
+		if (s != null && !s.isNull() && RCBase.isRCObject(s))
+			Log.write("value is or ");
+		addRef(s);
+	}*/
+	Log.writeln();
+	VM.barriers.addressWrite(src, value, metaDataA, metaDataB, mode);
+  }
+
+@Inline
+@Override
+public void offsetWrite(ObjectReference src, Address slot, Offset value,
+		Word metaDataA, Word metaDataB, int mode) {
+	Log.writeln("offsetWrite");
+	VM.barriers.offsetWrite(src, value, metaDataA, metaDataB, mode);
+}
+
+@Inline
   private static void deleteRef(ObjectReference old) {
-		if (old != null && RCBase.isRCObject(old)) {
-		      //coalescingWriteBarrierSlow(src);
-		      if (RCHeader.decRC(old) == RCHeader.DEC_KILL) {
-		    	  Log.write(RCHeader.getRC(old));
-		    	  Log.writeln(" -> delete object");
-		    	  //RCBase.rcSpace.free(old);
-		    	  //RCBase.rcSpace.release();
-		    	  //decBuffer.push(old);
-		      }
-			}
+	  if (old != null && RCBase.isRCObject(old)) {
+		 //coalescingWriteBarrierSlow(src);
+		 if (RCHeader.decRC(old) == RCHeader.DEC_KILL) {
+		  	  Log.write(RCHeader.getRC(old));
+		   	  Log.writeln(" -> delete object ");
+		   	  RCBase.rcSpace.free(old);
+	     }
+  	  }
   }
   
   @Inline
