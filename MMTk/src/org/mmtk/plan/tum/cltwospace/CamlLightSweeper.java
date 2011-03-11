@@ -10,36 +10,41 @@
  *  See the COPYRIGHT.txt file distributed with this work for information
  *  regarding copyright ownership.
  */
-package org.mmtk.plan.refcount.backuptrace;
+package org.mmtk.plan.tum.cltwospace;
 
-import org.mmtk.plan.refcount.RCHeader;
 import org.mmtk.policy.ExplicitFreeListSpace;
+import org.mmtk.utility.Log;
 import org.mmtk.vm.VM;
 
 import org.vmmagic.pragma.*;
 import org.vmmagic.unboxed.*;
+
+// Sweeper for lifting assumption 4)
 
 /**
  * This class implements the thread-local core functionality for a transitive
  * closure over the heap graph.
  */
 @Uninterruptible
-public final class BTSweeper extends ExplicitFreeListSpace.Sweeper {
+public final class CamlLightSweeper extends ExplicitFreeListSpace.Sweeper {
 
-  private final BTDecMarked sdm = new BTDecMarked();
-
+  private final CamlLightTrace clt = new CamlLightTrace();
+  
+  /**
+   * @return True if cell should be freed (only relevant if free was false).
+   */
   public boolean sweepCell(ObjectReference object, boolean free) {
-    if(!free) {
-      if (!RCHeader.isMarked(object)) {
-        VM.scanning.scanObject(sdm, object);
-        return true;
-      } else {
-        RCHeader.clearMarked(object);
-      }
+    Log.writeln("sweepCell");   
+    if (!free) {
       return false;
     } else {
+      // Cell is free. We need to scan for references. If they point to a
+      // reference counted object, we must make sure the RC is decremented.
+      if (!object.isNull()) {
+        VM.scanning.scanObject(clt, object);
+      }
       return false;
     }
-    
+
   }
 }

@@ -773,8 +773,10 @@ public abstract class SegregatedFreeListSpace extends Space implements Constants
       if (!current.isNull()) {
         free = !liveBitSet(current);
         if (!free) {
-          free = sweeper.sweepCell(current);
+          free = sweeper.sweepCell(current, free);
           if (free) unsyncClearLiveBit(current);
+        } else {
+          sweeper.sweepCell(current, free);
         }
       }
       if (!free) {
@@ -790,7 +792,7 @@ public abstract class SegregatedFreeListSpace extends Space implements Constants
    */
   @Uninterruptible
   public abstract static class Sweeper {
-    public abstract boolean sweepCell(ObjectReference object);
+    public abstract boolean sweepCell(ObjectReference object, boolean free);
   }
 
   /****************************************************************************
