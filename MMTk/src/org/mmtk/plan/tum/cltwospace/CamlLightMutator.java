@@ -262,15 +262,13 @@ public class CamlLightMutator extends StopTheWorldMutator {
   public boolean objectReferenceTryCompareAndSwap(ObjectReference src, Address slot,
       ObjectReference old, ObjectReference tgt, Word metaDataA,
       Word metaDataB, int mode) {
-
-    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(old.toAddress().EQ(slot.loadAddress()));
-//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(old == slot.loadObjectReference()); // <-- maybe == does not work like this for magic unboxed types
-
     
-    writeBarrier(src, old, tgt, "objectReferenceTryCompareAndSwap");
-    // NOTE: Maybe this could lead to a race condition, where another thread changes the old value in between ???
+    if ( VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode) ) {
+      writeBarrier(src, old, tgt, "objectReferenceTryCompareAndSwap");
+      return true;
+    }
     
-    return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
+    return false;
   }
   
   @Inline
