@@ -39,7 +39,7 @@ public class RefCount extends StopTheWorld {
 	 * Class variables
 	 */
 	public static final ExplicitFreeListSpace rcSpace = new ExplicitFreeListSpace("rc", VMRequest.create());
-	private static final RefCountSweeper sweeper = new RefCountSweeper();
+	//private static final RefCountSweeper sweeper = new RefCountSweeper();
 
 	public static final int RC_DESC = rcSpace.getDescriptor();
 	public static final int SCAN_MARK = 0;
@@ -57,6 +57,19 @@ public class RefCount extends StopTheWorld {
 		      Phase.scheduleMutator     (PREPARE_ZCT),
 		      Phase.scheduleGlobal     (PREPARE_ZCT),
 		      Phase.scheduleCollector   (PREPARE_ZCT));
+	  /**
+	   * Perform the initial determination of liveness from the roots.
+	   */
+	  protected static final short rootClosurePhase = Phase.createComplex("initial-closure", null,
+	      Phase.scheduleMutator    (PREPARE),
+	      Phase.scheduleGlobal     (PREPARE),
+	      Phase.scheduleCollector  (PREPARE),
+	      Phase.scheduleComplex    (prepareStacks),
+	      Phase.scheduleCollector  (STACK_ROOTS),
+	      Phase.scheduleCollector  (ROOTS),
+	      Phase.scheduleGlobal     (ROOTS),
+	      Phase.scheduleGlobal     (CLOSURE),
+	      Phase.scheduleCollector  (CLOSURE));
 
 	public  short collection = Phase.createComplex("collection", null,
 			Phase.scheduleComplex(initPhase),
@@ -102,19 +115,19 @@ public RefCount(){
 			VM.weakReferences.clear();
 			VM.softReferences.clear();
 			VM.phantomReferences.clear();
-//			rcTrace.prepare();
+			refCountTrace.prepare();
 			rcSpace.prepare();
 			return;
 		}
 		
 		if (phaseId == CLOSURE) {
 //			Log.writeln("CLOSURE");
-//			rcTrace.prepare();
+			refCountTrace.prepare();
 			return;
 		}
 		if (phaseId == RELEASE) {
+			refCountTrace.release();
 //			Log.writeln("RELEASE");
-//			rcTrace.release();
 			rcSpace.release();
 			setCount(0);
 			return;
@@ -125,7 +138,7 @@ public RefCount(){
 		}
 		if(phaseId==PROCESS_ZCT){
 
-			rcSpace.sweepCells(sweeper);
+			//rcSpace.sweepCells(sweeper);
 			return;
 		}
 		super.collectionPhase(phaseId);

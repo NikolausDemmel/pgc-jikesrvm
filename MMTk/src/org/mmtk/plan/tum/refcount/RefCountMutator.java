@@ -115,26 +115,9 @@ public class RefCountMutator extends StopTheWorldMutator {
 		case RefCount.ALLOC_DEFAULT:
 			RefCountHeader.initializeHeader(ref, false);
 			ExplicitFreeListSpace.unsyncSetLiveBit(ref);
-			break;
-
-		case RefCount.ALLOC_NON_MOVING:
-		case RefCount.ALLOC_CODE:
-		case RefCount.ALLOC_IMMORTAL:
-			RefCountHeader.initializeHeader(ref, true);	
-			ExplicitFreeListSpace.unsyncSetLiveBit(ref);
-			break;
-
-		case RefCount.ALLOC_LARGE_CODE:
-		case RefCount.ALLOC_LOS:
-		case RefCount.ALLOC_PRIMITIVE_LOS:
-			RefCountHeader.initializeHeader(ref, false);
-			ExplicitFreeListSpace.unsyncSetLiveBit(ref);
-			break;
-
-		default:
-			VM.assertions.fail("Allocator not understood by RC");
 			return;
 		}
+		super.postAlloc(ref, typeRef, bytes, allocator);
 	}	
 
 
@@ -194,10 +177,6 @@ public class RefCountMutator extends StopTheWorldMutator {
 
 		VM.barriers.objectReferenceWrite(src, tgt, metaDataA, metaDataB, mode);
 	}
-	int hcnt=0;
-	int iinc=0;
-	int idec=0;
-	int idel=0;
 	/****************************************************************************
 	 * Collection
 	 */
@@ -207,17 +186,6 @@ public class RefCountMutator extends StopTheWorldMutator {
 		// TODO Auto-generated method stub
 		super.deinitMutator();
 	}
-
-
-	@Inline
-	public void objectReferenceNonHeapWrite(Address slot, ObjectReference tgt,
-			Word metaDataA, Word metaDataB) {
-//		Log.writeln("oRW_NonHeap()");
-		ObjectReference old = slot.loadObjectReference();
-		writeBarrier(old, tgt);
-		VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
-	}
-
 
 	@Inline
 	public boolean objectReferenceTryCompareAndSwap(ObjectReference src,
@@ -230,14 +198,6 @@ public class RefCountMutator extends StopTheWorldMutator {
 	}
 
 
-	@Override
-	public void wordWrite(ObjectReference src, Address slot, Word value,
-			Word metaDataA, Word metaDataB, int mode) {
-		// TODO Auto-generated method stub
-		//		Log.writeln("wordWrite");
-		//		Log.writeln("src\t" +src.toAddress().toInt());
-		super.wordWrite(src, slot, value, metaDataA, metaDataB, mode);
-	}
 	@Inline
 	@Uninterruptible
 	public static final void delete(ObjectReference obj) {
@@ -246,7 +206,6 @@ public class RefCountMutator extends StopTheWorldMutator {
 			//VM.assertions._assert(CamlLightHeader.isLiveRC(obj));
 		}
 		if(RefCountHeader.decRC(obj) == RefCountHeader.DEC_KILL) {
-			Log.writeln(RefCount.freeMemory().toInt());	
 			ZCT.push(obj);
 			RefCount.incCount();
 			Log.write("deleting object ");

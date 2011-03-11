@@ -84,12 +84,9 @@ public class RefCountCollector extends StopTheWorldCollector {
 //			rctl.prepare();
 			return;
 		}
-		if(phaseId == RefCount.STACK_ROOTS){
-//			Log.writeln("STACK_ROOTS\t"+RefCount.freeMemory());
-		}
 		if (phaseId == RefCount.CLOSURE) {
 //			Log.writeln("CLOSURE\t"+RefCount.freeMemory());
-			//						rctl.completeTrace();
+			rctl.completeTrace();
 			return;
 		}
 
