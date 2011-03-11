@@ -78,10 +78,15 @@ public abstract class Plan implements Constants {
   public static final int ALLOC_GCSPY = 6;
   public static final int ALLOC_CODE = 7;
   public static final int ALLOC_LARGE_CODE = 8;
+  
+  // NOTE: @demmeln Is there a better way to add this without polluting Plan?
+  public static final int ALLOC_CAML_LIGHT_HEAP = 9;
+  public static final int ALLOC_CAML_LIGHT_NOT_HEAP = 10;
+  
   public static final int ALLOC_HOT_CODE = USE_CODE_SPACE ? ALLOC_CODE : ALLOC_DEFAULT;
   public static final int ALLOC_COLD_CODE = USE_CODE_SPACE ? ALLOC_CODE : ALLOC_DEFAULT;
   public static final int ALLOC_STACK = ALLOC_LOS;
-  public static final int ALLOCATORS = 9;
+  public static final int ALLOCATORS = 11; // NOTE: @demmeln see above
   public static final int DEFAULT_SITE = -1;
 
   /* Miscellaneous Constants */

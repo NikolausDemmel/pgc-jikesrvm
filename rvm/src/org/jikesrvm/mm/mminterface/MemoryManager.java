@@ -43,6 +43,7 @@ import org.mmtk.plan.CollectorContext;
 import org.mmtk.plan.Plan;
 import org.mmtk.policy.Space;
 import org.mmtk.utility.Constants;
+import org.mmtk.utility.Log;
 import org.mmtk.utility.Memory;
 import org.mmtk.utility.alloc.Allocator;
 import org.mmtk.utility.gcspy.GCspy;
@@ -80,7 +81,7 @@ public final class MemoryManager implements HeapLayoutConstants, Constants {
    * zeroed is desired.
    */
   private static final boolean CHECK_MEMORY_IS_ZEROED = false;
-  private static final boolean traceAllocator = false;
+  private static final boolean traceAllocator = false; // could be useful
 
   /**
    * Has the interface been booted yet?
@@ -457,6 +458,22 @@ public final class MemoryManager implements HeapLayoutConstants, Constants {
         isPrefix("Lorg/jikesrvm/mm/", typeBA) || isPrefix("[Lorg/jikesrvm/mm/", typeBA) ||
         isPrefix("Lorg/jikesrvm/jni/JNIEnvironment;", typeBA)) {
       allocator = Plan.ALLOC_NON_MOVING;
+    }
+    if (isPrefix("Lfoobar/CamlLightHeap", typeBA)) {
+      Log.writeln("picking allocator for type 'Lfoobar/CamlLightHeap...'");
+      return Plan.ALLOC_CAML_LIGHT_HEAP;
+    }
+    if (isPrefix("[Lfoobar/CamlLightHeap", typeBA)) {
+      Log.writeln("picking allocator for type '[Lfoobar/CamlLightHeap...'");
+      return Plan.ALLOC_CAML_LIGHT_HEAP;
+    }
+    if (isPrefix("Lfoobar", typeBA)) {
+      Log.writeln("picking allocator for type 'Lfoobar...'");
+      return Plan.ALLOC_CAML_LIGHT_NOT_HEAP;
+    }
+    if (isPrefix("[Lfoobar", typeBA)) {
+      Log.writeln("picking allocator for type '[Lfoobar...'");
+      return Plan.ALLOC_CAML_LIGHT_NOT_HEAP;
     }
     return allocator;
   }
