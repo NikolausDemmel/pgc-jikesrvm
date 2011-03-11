@@ -39,7 +39,7 @@ public final class CamlLightTrace extends TransitiveClosure {
 
     ObjectReference obj = slot.loadObjectReference();
     
-    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(obj != null);
+//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(obj != null);
 
 //    Log.prependThreadId();
 //    Log.write("processEdge - source: ");
@@ -49,7 +49,7 @@ public final class CamlLightTrace extends TransitiveClosure {
 //    Log.write(" obj: ");
 //    Log.writeln(obj);
     
-    if (CamlLight.isCamlLightObject(obj)) {
+    if (obj != null && CamlLight.isCamlLightObject(obj)) {
       
       //slot.store(ObjectReference.nullReference());
       CamlLightMutator.delete(obj);

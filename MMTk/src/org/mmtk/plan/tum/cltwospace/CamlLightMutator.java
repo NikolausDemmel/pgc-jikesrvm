@@ -24,6 +24,7 @@ import org.mmtk.vm.VM;
 import org.vmmagic.pragma.*;
 import org.vmmagic.unboxed.*;
 
+
 /**
  * This class implements <i>per-mutator thread</i> behavior and state
  * for the <i>NoGC</i> plan, which simply allocates (without ever collecting
@@ -67,32 +68,44 @@ public class CamlLightMutator extends StopTheWorldMutator {
   @Inline
   @Override
   public Address alloc(int bytes, int align, int offset, int allocator, int site) {
+    if (allocator == CamlLight.ALLOC_CAML_LIGHT_NOT_HEAP) {
+      Log.writeln("alloc caml non heap");
+      return ms.alloc(bytes, align, offset);
+    }
+    if (allocator == CamlLight.ALLOC_CAML_LIGHT_HEAP) {
+      Log.writeln("alloc caml heap");
+      return cs.alloc(bytes, align, offset);
+    }
     if (allocator == CamlLight.ALLOC_DEFAULT) {
-//      Log.writeln("alloc - bytes: " + bytes);
-      
-//      if (VM.VERIFY_ASSERTIONS) {
-//        VM.assertions._assert(bytes == 72 || bytes == 112);
-//      }
-      
-      if (bytes == 72) {
-        Address a = ms.alloc(bytes, align, offset);
-//        Log.writeln("alloc in MS - ref: " + a);
-        return a;
-      }
-//      if (bytes == 112) {
-//        Address a = cs.alloc(bytes, align, offset);
-////        Log.writeln("alloc in CS - ref: " + a);
+//      Log.writeln("alloc default");
+      return ms.alloc(bytes, align, offset);
+    }
+//    if (allocator == CamlLight.ALLOC_DEFAULT) {
+////      Log.writeln("alloc - bytes: " + bytes);
+//      
+////      if (VM.VERIFY_ASSERTIONS) {
+////        VM.assertions._assert(bytes == 72 || bytes == 112);
+////      }
+//      
+//      if (bytes == 72) {
+//        Address a = ms.alloc(bytes, align, offset);
+////        Log.writeln("alloc in MS - ref: " + a);
 //        return a;
 //      }
-      
-      // ELSE
-
-      Address a = ms.alloc(bytes, align, offset);
-      return a;
-      
-      
-      //return cs.alloc(bytes, align, offset);
-    }
+////      if (bytes == 112) {
+////        Address a = cs.alloc(bytes, align, offset);
+//////        Log.writeln("alloc in CS - ref: " + a);
+////        return a;
+////      }
+//      
+//      // ELSE
+//
+//      Address a = ms.alloc(bytes, align, offset);
+//      return a;
+//      
+//      
+//      //return cs.alloc(bytes, align, offset);
+//    }
     return super.alloc(bytes, align, offset, allocator, site);
   }
 
@@ -109,11 +122,17 @@ public class CamlLightMutator extends StopTheWorldMutator {
   @Override
   public void postAlloc(ObjectReference ref, ObjectReference typeRef,
       int bytes, int allocator) {
-    if (allocator == CamlLight.ALLOC_DEFAULT) {
+    if (allocator == CamlLight.ALLOC_DEFAULT ||
+        allocator == CamlLight.ALLOC_CAML_LIGHT_HEAP || 
+        allocator == CamlLight.ALLOC_CAML_LIGHT_NOT_HEAP ) {
       if(VM.VERIFY_ASSERTIONS) {
         VM.assertions._assert(Space.isInSpace(CamlLight.MS, ref) ||
                               Space.isInSpace(CamlLight.CS, ref) );
       }
+      
+//      Log.write("postAlloc allocator: ");
+//      Log.writeln(allocator);
+     
       
       if(Space.isInSpace(CamlLight.MS, ref)) {
 //        Log.writeln("postAlloc in MS - ref: " + ref);
@@ -238,20 +257,21 @@ public class CamlLightMutator extends StopTheWorldMutator {
 //    VM.barriers.objectReferenceNonHeapWrite(slot, tgt, metaDataA, metaDataB);
 //  }
   
-//  @Inline
-//  @Override
-//  public boolean objectReferenceTryCompareAndSwap(ObjectReference src, Address slot,
-//      ObjectReference old, ObjectReference tgt, Word metaDataA,
-//      Word metaDataB, int mode) {
-//
-////    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(old.equals(slot.loadObjectReference()));
-//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(old == slot.loadObjectReference());
-//
-//    
-//    writeBarrier(old, tgt, "objectReferenceTryCompareAndSwap");
-//    // NOTE: This could lead to a race condition, where another thread changes the old value in between.
-//    return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
-//  }
+  @Inline
+  @Override
+  public boolean objectReferenceTryCompareAndSwap(ObjectReference src, Address slot,
+      ObjectReference old, ObjectReference tgt, Word metaDataA,
+      Word metaDataB, int mode) {
+
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(old.toAddress().EQ(slot.loadAddress()));
+//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(old == slot.loadObjectReference()); // <-- maybe == does not work like this for magic unboxed types
+
+    
+    writeBarrier(src, old, tgt, "objectReferenceTryCompareAndSwap");
+    // NOTE: Maybe this could lead to a race condition, where another thread changes the old value in between ???
+    
+    return VM.barriers.objectReferenceTryCompareAndSwap(src,old,tgt,metaDataA,metaDataB,mode);
+  }
   
   @Inline
   private void writeBarrier(ObjectReference src, ObjectReference old, ObjectReference tgt, String debug) {
@@ -259,7 +279,7 @@ public class CamlLightMutator extends StopTheWorldMutator {
     if (CamlLight.isRCRelevantObject(src)) {
       
       if(CamlLight.gcInProgress()) {
-        Log.writeln("foo");
+        Log.writeln("waaaa! write barrier during GC...");
       }
 
       if (VM.VERIFY_ASSERTIONS) {
