@@ -68,18 +68,28 @@ public class CamlLightMutator extends StopTheWorldMutator {
   @Inline
   @Override
   public Address alloc(int bytes, int align, int offset, int allocator, int site) {
+    
+    // The following code needs to be used for running this gc in the real rvm
+    // we distinguish the objects by type. See  pickAllocatorForType
+    // in org.jikesrvm.mm.mminterface.MemoryManager
+    
     if (allocator == CamlLight.ALLOC_CAML_LIGHT_NOT_HEAP) {
-      Log.writeln("alloc caml non heap");
+//      Log.writeln("alloc caml non heap");
       return ms.alloc(bytes, align, offset);
     }
     if (allocator == CamlLight.ALLOC_CAML_LIGHT_HEAP) {
-      Log.writeln("alloc caml heap");
+//      Log.writeln("alloc caml heap");
       return cs.alloc(bytes, align, offset);
     }
     if (allocator == CamlLight.ALLOC_DEFAULT) {
 //      Log.writeln("alloc default");
       return ms.alloc(bytes, align, offset);
     }
+    
+    // The following code needs to be used for running this gc in the harness
+    // since we have no types we distinguish the objects by size.
+    
+//
 //    if (allocator == CamlLight.ALLOC_DEFAULT) {
 ////      Log.writeln("alloc - bytes: " + bytes);
 //      
@@ -97,14 +107,7 @@ public class CamlLightMutator extends StopTheWorldMutator {
 //////        Log.writeln("alloc in CS - ref: " + a);
 ////        return a;
 ////      }
-//      
-//      // ELSE
-//
-//      Address a = ms.alloc(bytes, align, offset);
-//      return a;
-//      
-//      
-//      //return cs.alloc(bytes, align, offset);
+
 //    }
     return super.alloc(bytes, align, offset, allocator, site);
   }
@@ -185,17 +188,18 @@ public class CamlLightMutator extends StopTheWorldMutator {
   public static final void delete(ObjectReference obj) {
     if (VM.VERIFY_ASSERTIONS) {
       VM.assertions._assert(CamlLight.isCamlLightObject(obj));
+      // this assertion should be included if the following debug prints
+      // are removed
 //      VM.assertions._assert(CamlLightHeader.isLiveRC(obj));
-      
     }
     
     if( ! CamlLightHeader.isLiveRC(obj) ) {
-      Log.writeln("trying to delete object which is not live.");
+      Log.write("trying to delete object which is not live. not good. ");
       Log.writeln(obj);
     }
     
     if(CamlLightHeader.getRC(obj) == CamlLightHeader.RC_ZERO) {
-      Log.writeln("trying to delete object with 0 rc.");
+      Log.write("trying to delete object with 0 rc. not good. ");
       Log.writeln(obj);
 //      Log.writeln(CamlLightHeader.isLiveRC(obj));
     } else {
@@ -276,12 +280,13 @@ public class CamlLightMutator extends StopTheWorldMutator {
 
     if (CamlLight.isRCRelevantObject(src)) {
       
-      if(CamlLight.gcInProgress()) {
-        Log.writeln("waaaa! write barrier during GC...");
-      }
+//      if(CamlLight.gcInProgress()) {
+//        Log.writeln("waaaa! write barrier during GC...");
+//      }
 
       if (VM.VERIFY_ASSERTIONS) {
         VM.assertions._assert(src != null, "src is null");
+        // the next two assertions only hold in the harness
 //        VM.assertions._assert(tgt != null, "tgt is null");
 //        VM.assertions._assert(old != null, "old is null");
       }
@@ -295,7 +300,7 @@ public class CamlLightMutator extends StopTheWorldMutator {
 //        Log.write(" called from: ");
 //        Log.writeln(debug);
 //      }
-//
+      
 //      if (tgt == null) {
 //        Log.writeln("tgt is null");
 //      }

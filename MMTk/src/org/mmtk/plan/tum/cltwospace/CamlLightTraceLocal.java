@@ -52,8 +52,6 @@ public final class CamlLightTraceLocal extends TraceLocal {
       return CamlLight.msSpace.isLive(object);
     }
     if (Space.isInSpace(CamlLight.CS, object)) {
-      // @demmeln not sure about this
-      VM.assertions._assert(false);
       return CamlLight.camlSpace.isLive(object);
     }
     return super.isLive(object);
@@ -75,9 +73,9 @@ public final class CamlLightTraceLocal extends TraceLocal {
   public ObjectReference traceObject(ObjectReference object) {
     if (object.isNull()) return object;
     if (Space.isInSpace(CamlLight.CS, object))
-      return object;
+      return object; // stop tracing when reached a caml-space object
     if (Space.isInSpace(CamlLight.MS, object))
-      return CamlLight.msSpace.traceObject(this, object);
+      return CamlLight.msSpace.traceObject(this, object); // this effectivly adds the object to the queue for traversing the heap (unless it is already marked)
     return super.traceObject(object);
   }
 }

@@ -38,7 +38,8 @@ public final class CamlLightTrace extends TransitiveClosure {
   public void processEdge(ObjectReference source, Address slot) {
 
     ObjectReference obj = slot.loadObjectReference();
-    
+   
+    // only holds in the harness:
 //    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(obj != null);
 
 //    Log.prependThreadId();

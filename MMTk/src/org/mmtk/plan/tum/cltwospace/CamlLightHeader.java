@@ -35,20 +35,15 @@ public class CamlLightHeader implements Constants {
 
   /* Header offset */
   public static final Offset RC_HEADER_OFFSET = VM.objectModel.GC_HEADER_OFFSET();
-
-  /* Reserved to allow alignment hole filling to work */
-//  public static final int RESERVED_ALIGN_BIT = 0;
   
   /* color bits */
+  // intended to be used to cycle detection. unused at the moment
   public static final int COLOR_BIT_1 = 0;
   public static final int COLOR_BIT_2 = 1;
   public static final Word COLOR_BIT_MASK = Word.one().lsh(2).minus(Word.one()); // "4-1" : ...011
 
   /* Reference counting increments */
-//  public static final int INCREMENT_SHIFT = 0;
-//  public static final Word INCREMENT = Word.one().lsh(INCREMENT_SHIFT);
   public static final Word INCREMENT = Word.one();
-  // TODO: wieso nicht Word.zero().not(); als limit ?
   public static final Word INCREMENT_LIMIT = Word.one().lsh(BITS_IN_ADDRESS-1).not();
   public static final Word LIVE_THRESHOLD = INCREMENT;
 
@@ -74,17 +69,13 @@ public class CamlLightHeader implements Constants {
    * @param object The object whose liveness is to be tested
    * @return True if the object is alive
    */
-//  @Inline
-//  @Uninterruptible
-//  public static boolean isLiveRC(ObjectReference object) {
-//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(CamlLight.isCamlLightObject(object));
-//    
-//    return object.toAddress().loadWord(RC_HEADER_OFFSET).GE(LIVE_THRESHOLD);
-//  }
   @Inline
   @Uninterruptible
   public static boolean isLiveRC(ObjectReference object) {
     if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(CamlLight.isCamlLightObject(object));
+    
+    // dont use rc == 0 as a test for liveness, since freshly created object is live, but has
+    // rc == 0 until the first reference from the heap is set.
     
     return CamlLight.camlSpace.isLive(object);
   }
@@ -98,7 +89,6 @@ public class CamlLightHeader implements Constants {
   @Inline
   @Uninterruptible
   public static int getRC(ObjectReference object) {
-    //return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).toInt();
     return object.toAddress().loadWord(RC_HEADER_OFFSET).toInt();
   }
 
@@ -120,7 +110,8 @@ public class CamlLightHeader implements Constants {
       newValue = oldValue.plus(INCREMENT);
     } while (!object.toAddress().attempt(oldValue, newValue, RC_HEADER_OFFSET));
 
-//    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
+    // overflow of the rc field?
+    if (VM.VERIFY_ASSERTIONS) VM.assertions._assert(newValue.LE(INCREMENT_LIMIT));
     
 //    Log.prependThreadId();
 //    Log.write("incRC - object: ");
@@ -128,7 +119,6 @@ public class CamlLightHeader implements Constants {
 //    Log.write(" newValue: ");
 //    Log.writeln(newValue);
     
-//    return oldValue.LT(LIVE_THRESHOLD); // old value < threshold means that new value must be "1" (i.e. INCREMENT)
   }
 
   /**
@@ -170,8 +160,4 @@ public class CamlLightHeader implements Constants {
     return rtn;
   }
   
-//  public static boolean isRCOne(ObjectReference object) {
-////	  return object.toAddress().loadWord(RC_HEADER_OFFSET).rshl(INCREMENT_SHIFT).EQ(INCREMENT);
-//      return object.toAddress().loadWord(RC_HEADER_OFFSET).EQ(INCREMENT);
-//  }
 }

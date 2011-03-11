@@ -18,6 +18,10 @@ import org.mmtk.vm.VM;
 
 import org.vmmagic.pragma.*;
 
+
+// Collection of the ms-space
+
+
 /**
  * This class implements <i>per-collector thread</i> behavior and state
  * for the <i>NoGC</i> plan, which simply allocates (without ever collecting
@@ -45,6 +49,7 @@ public class CamlLightCollector extends StopTheWorldCollector {
    * Collection
    */
 
+// uncomment to make sure no collection phase is ever run (or an assertion fails).
 //  /**
 //   * Perform a garbage collection
 //   */
